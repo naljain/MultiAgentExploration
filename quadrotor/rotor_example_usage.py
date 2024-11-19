@@ -50,7 +50,7 @@ Instantiation
 # Obstacle maps can be loaded in from a JSON file using the World.from_file(path) method. Here we are loading in from 
 # an existing file under the rotorpy/worlds/ directory. However, you can create your own world by following the template
 # provided (see rotorpy/worlds/README.md), and load that file anywhere using the appropriate path.
-world = World.from_file(os.path.abspath(os.path.join(os.path.dirname(__file__),'..','MultiAgentExploration','rotorpy','rotorpy','worlds','double_pillar.json')))
+world = World.from_file(os.path.abspath(os.path.join(os.path.dirname(__file__),'..','rotorpy','rotorpy','worlds','double_pillar.json')))
 
 # "world" is an optional argument. If you don't load a world it'll just provide an empty playground! 
 
