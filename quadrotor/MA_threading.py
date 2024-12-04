@@ -215,23 +215,23 @@ if __name__ == "__main__":
     collisions = find_collisions(all_pos, epsilon=2e-1)
 
     # Animate. 
-    # ani = animate(all_time, all_pos, all_rot, all_wind, animate_wind=False, world=world, filename=None)
+    ani = animate(all_time, all_pos, all_rot, all_wind, animate_wind=False, world=world, filename=None)
 
-    # # Plot the positions of each agent in 3D, alongside collision events (when applicable)
-    # fig = plt.figure()
-    # ax = fig.add_subplot(projection='3d')
-    # colors = plt.cm.tab10(range(all_pos.shape[1]))
-    # for mav in range(all_pos.shape[1]):
-    #     ax.plot(all_pos[:, mav, 0], all_pos[:, mav, 1], all_pos[:, mav, 2], color=colors[mav])
-    #     ax.plot([all_pos[-1, mav, 0]], [all_pos[-1, mav, 1]], [all_pos[-1, mav, 2]], '*', markersize=10, markerfacecolor=colors[mav], markeredgecolor='k')
-    # world.draw(ax)
-    # for event in collisions:
-    #     ax.plot([all_pos[event['timestep'], event['agents'][0], 0]], [all_pos[event['timestep'], event['agents'][0], 1]], [all_pos[event['timestep'], event['agents'][0], 2]], 'rx', markersize=10)
-    # ax.set_xlabel("x, m")
-    # ax.set_ylabel("y, m")
-    # ax.set_zlabel("z, m")
+    # Plot the positions of each agent in 3D, alongside collision events (when applicable)
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    colors = plt.cm.tab10(range(all_pos.shape[1]))
+    for mav in range(all_pos.shape[1]):
+        ax.plot(all_pos[:, mav, 0], all_pos[:, mav, 1], all_pos[:, mav, 2], color=colors[mav])
+        ax.plot([all_pos[-1, mav, 0]], [all_pos[-1, mav, 1]], [all_pos[-1, mav, 2]], '*', markersize=10, markerfacecolor=colors[mav], markeredgecolor='k')
+    world.draw(ax)
+    for event in collisions:
+        ax.plot([all_pos[event['timestep'], event['agents'][0], 0]], [all_pos[event['timestep'], event['agents'][0], 1]], [all_pos[event['timestep'], event['agents'][0], 2]], 'rx', markersize=10)
+    ax.set_xlabel("x, m")
+    ax.set_ylabel("y, m")
+    ax.set_zlabel("z, m")
 
-    # plt.show()
+    plt.show()
 
     from rotorpy.utils.plotter import plot_map
     import matplotlib.pyplot as plt

@@ -69,6 +69,7 @@ from rotorpy.trajectories.lissajous_traj import TwoDLissajous
 from rotorpy.trajectories.minsnap import MinSnap
 from rotorpy.sensors.range_sensors import TwoDRangeSensor
 from matplotlib.animation import FuncAnimation
+from rotorpy.utils.plotter import plot_map
 
 
 class MultiAgentSimulation:
@@ -96,7 +97,7 @@ class MultiAgentSimulation:
         self.config_list = config_list
         self.config_defaults = config_defaults
     
-    def load_config(self, config_list, shared_data=None):
+    def load_config(self, config_list, shared_data=None, sensor_parameters=None):
         """Loads the configuration list that defines the parameters for each instance. Empty list loads a default configuration based on number of agents.
 
         Args:
@@ -129,20 +130,38 @@ class MultiAgentSimulation:
             generated_configs = []
             for i in range(len(generated_configs)):
                 generated_configs.append((config_list[i][0], config_list[i][1], self.t_final, self.t_step, shared_data))
+        
+        # Place sensor parameters in config structure
+        # Sensor parameters can be vary for each 
+        for i in range(len(generated_configs)):
+            generated_configs[i] = (*generated_configs[i], sensor_parameters)
 
         return generated_configs
     
     def worker_fn(self, cfg):
-        return self.single_agent_sim(*cfg[:-1], shared_data=cfg[-1])
+        return self.single_agent_sim(*cfg[:-2], shared_data=cfg[-2], sensor_parameters=cfg[-1])
     
-    def world_update(self,world, position_data):
-        for pos in position_data['positions']:
-            # Replace position of other agents wtih 0.1x0.1x0.2m blocks in this world instance.
-            block = {'extents': [pos[0], pos[0]+0.1, pos[1], pos[1]+0.1, pos[2]-0.1, pos[2]+0.1], 'color': [1, 0, 0]}
-            world.world['blocks'].append(block)
-            return world
-            
-    def single_agent_sim(self, trajectory, t_offset, t_final=10, t_step=1/100, shared_data=None):
+    def sense_from_world(self, world, position_data, thread_id, sensor_parameters):
+        current_position = {'x':position_data[thread_id]['positions'][-1]}
+        position_data_copy = position_data.copy()
+        position_data_copy.pop(thread_id)
+        other_drone_positions = position_data_copy
+        if len(other_drone_positions) != 0:
+            for pos in other_drone_positions.values():
+                # Replace position of other agents wtih 0.1x0.1x0.2m blocks in this world instance.
+                pos = pos['positions'][-1]
+                block = {'extents': [pos[0], pos[0]+0.1, pos[1], pos[1]+0.1, pos[2]-0.1, pos[2]+0.1], 'color': [0, 1, 0]}
+                world.world['blocks'].append(block)
+            # For now, TwoDRangeSensor is instantiated every time step because the rays cast in the world are calculated on instantiation.
+            range_sensor = TwoDRangeSensor(world, sampling_rate=100, angular_fov=sensor_parameters['angular_fov'], angular_resolution=sensor_parameters['angular_resolution'], fixed_heading=sensor_parameters['fixed_heading'], noise_density=sensor_parameters['noise_density'])
+            sensor_data = range_sensor.measurement(current_position)
+
+            # # Remove the blocks that were added to the world
+            # world.world['blocks'] = world.world['blocks'][:prev_obstacles]
+            return sensor_data, world
+        else:
+            return None, None
+    def single_agent_sim(self, trajectory, t_offset, t_final=10, t_step=1/100, shared_data=None, sensor_parameters=None):
         mav = Multirotor(quad_params)
         controller = SE3Control(quad_params)
 
@@ -158,22 +177,24 @@ class MultiAgentSimulation:
         states = [x0]
         flats = [trajectory.update(time[-1] + t_offset)]
         controls = [controller.update(time[-1], states[-1], flats[-1])]
-        world = copy.deepcopy(self.world)
+        orig_world = copy.deepcopy(self.world)
+        # Record number of obstacles in the world before adding the other agents.
+        prev_obstacles = len(world.world['blocks'])
         if shared_data is not None:
-            shared_data[threading.get_ident()] = {'time':[], 'positions':[], 'sensor_data':[]}
-        # if self.range_sensor:
-        #     # Sensor intrinsics
-
+            shared_data[threading.get_ident()] = {'time':[], 'positions':[], 'sensor_data':[], 'world':[]}
 
         while True:
             # Update shared data
             if shared_data is not None:
                 shared_data[threading.get_ident()]['positions'].append(states[-1]['x'])
                 shared_data[threading.get_ident()]['time'].append(time[-1])
-                world = self.world_update(world, (shared_data.copy()).pop(threading.get_ident()))
-                # if self.range_sensor:
-
-                
+                if sensor_parameters:
+                    sensor_data, updated_world = self.sense_from_world(orig_world, shared_data, threading.get_ident(), sensor_parameters)
+                    shared_data[threading.get_ident()]['sensor_data'].append(sensor_data)
+                    shared_data[threading.get_ident()]['world'].append(copy.deepcopy(updated_world))
+                    # Remove the blocks that were added to the world
+                    if orig_world is not None:
+                        orig_world.world['blocks'] = orig_world.world['blocks'][:prev_obstacles]
 
             if time[-1] >= t_final:
                 break
@@ -182,16 +203,12 @@ class MultiAgentSimulation:
             flats.append(trajectory.update(time[-1] + t_offset))
             controls.append(controller.update(time[-1], states[-1], flats[-1]))
 
-            # Update shared data
-            # if shared_data is not None:
-            #     shared_data[threading.get_ident()] = states[-1]['x']
-
         time        = np.array(time, dtype=float)    
         states      = merge_dicts(states)
         controls    = merge_dicts(controls)
         flats       = merge_dicts(flats)
 
-        return time, states, controls, flats
+        return time, states, controls, flats, shared_data
 
     def find_collisions(self, all_positions, epsilon=1e-1):
         """
@@ -227,12 +244,50 @@ class MultiAgentSimulation:
                     collisions.append(collision_info)
 
         return collisions
-    
-    def run_sim(self, sensor_parameters= {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}, 
+    def plot_range(self, axes, world, pos, ranges, range_sensor, detected_edges=None):
+        random_color = np.random.uniform(low=0, high=1, size=(100, 3))
+        axes[0].plot(pos[0], pos[1], 'ro', zorder=10, label="Robot Position")
+        if detected_edges is None:
+            axes[0].plot((pos[0:2] + ranges[:,np.newaxis]*range_sensor.ray_vectors)[:,0], (pos[0:2] + ranges[:,np.newaxis]*range_sensor.ray_vectors)[:,1], 'ko', markersize=3, label="Ray Intersection Points")
+        else:
+            for (i,edge) in enumerate(detected_edges):
+                axes[0].plot((pos[0:2] + ranges[edge,np.newaxis]*range_sensor.ray_vectors[edge])[:,0], (pos[0:2] + ranges[edge,np.newaxis]*range_sensor.ray_vectors[edge])[:,1], color=random_color[i], marker='o', markersize=3, linestyle='none', label="Ray Intersection Points")
+        line_objects = []
+        for i in range(range_sensor.N_rays):
+            xvals = [pos[0], (pos[0:2] + ranges[:,np.newaxis]*range_sensor.ray_vectors)[i,0]]
+            yvals = [pos[1], (pos[0:2] + ranges[:,np.newaxis]*range_sensor.ray_vectors)[i,1]]
+            line = axes[0].plot(xvals, yvals, 'k-', linewidth=0.5, alpha=0.5)
+
+        if detected_edges is None:
+            axes[1].plot(range_sensor.ray_angles, range_sensor.ranges, 'r.', linewidth=1.5)
+        else:
+            axes[1].plot(range_sensor.ray_angles, range_sensor.ranges, 'k.', linewidth=1.5, alpha=0.1)
+            for (i,edge) in enumerate(detected_edges):
+                axes[1].plot(range_sensor.ray_angles[edge], range_sensor.ranges[edge], color=random_color[i], linestyle='none', marker='.')
+        axes[1].plot([-180, 180], [range_sensor.Dmin, range_sensor.Dmin], 'k--', linewidth=1)
+        axes[1].plot([-180, 180], [range_sensor.Dmax, range_sensor.Dmax], 'k--', linewidth=1)
+
+        return
+    def update_range_plot(self, t, data, axes, sensor_parameters):
+        for ax in axes:
+            ax.clear()
+        # Get positions.
+        pos_t = data['positions'][t]
+        state = {'x': pos_t}
+        data_world = data['world'][t]
+        if data_world is None:
+            return
+        range_sensor = TwoDRangeSensor(data_world, sampling_rate=100, angular_fov=sensor_parameters['angular_fov'], angular_resolution=sensor_parameters['angular_resolution'], fixed_heading=sensor_parameters['fixed_heading'], noise_density=sensor_parameters['noise_density'])
+        ranges = range_sensor.measurement(state)
+        plot_map(axes[0], data_world.world)
+        self.plot_range(axes, world, pos_t, ranges, range_sensor)
+
+    def run_sim(self, sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}, 
                 range_sensor_plot=False, visualize=False):
-        data = {'number_agents':self.num_agents}
+        data = {}
+
         with ThreadPoolManager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
-            config_list = self.load_config(self.config_list, shared_data=data)
+            config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
             results = pool.map(pool.worker_fn, config_list)
         
             # Concatentate all the relevant states/inputs for animation. 
@@ -246,6 +301,7 @@ class MultiAgentSimulation:
             all_wind.append(r[1]['wind'])
             all_rot.append(Rotation.from_quat(r[1]['q']).as_matrix())
 
+        shared_data = results[-1][-1]
         all_pos = np.stack(all_pos, axis=1)
         all_wind = np.stack(all_wind, axis=1)
         all_rot = np.stack(all_rot, axis=1)
@@ -272,26 +328,20 @@ class MultiAgentSimulation:
             ax.set_zlabel("z, m")
 
             plt.show()
-        
-        # if range_sensor:
-        #     # Sensor intrinsics
-        #     angular_fov = 360
-        #     angular_resolution = 1
-        #     fixed_heading = True
-        #     noise_density = 0.005
 
-        #     drone_id = 0
+        if range_sensor_plot and sensor_parameters:
+            for data in shared_data:
+                N = len(shared_data[data]['positions'])
+                (fig, axes) = plt.subplots(nrows=1, ncols=2, num="Ray Intersections Test")
+                ani = FuncAnimation(fig, self.update_range_plot, frames=range(0, N), repeat=False, fargs=(shared_data[data], axes, sensor_parameters))
+                plt.show()
 
-        if range_sensor_plot:
-            (fig, axes) = plt.subplots(nrows=1, ncols=2, num="Ray Intersections Test")
-            N, M, _ = all_pos.shape
-            ani = FuncAnimation(fig, update_plot, frames=range(0, N), repeat=True)
-            plt.show()
 
 # Main code
 if __name__ == "__main__":
     world = World.grid_forest(n_rows=2, n_cols=2, width=0.5, height=3, spacing=4)
     sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}
+    # sensor_parameters = None
 
-    sim = MultiAgentSimulation(world=world, num_agents=2, t_final=10, t_step=1/100, config_list="Cool")
-    sim.run_sim()
+    sim = MultiAgentSimulation(world=world, num_agents=3, t_final=10, t_step=1/100, config_list="Cool")
+    sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True)
