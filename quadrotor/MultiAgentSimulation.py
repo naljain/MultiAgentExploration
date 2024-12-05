@@ -179,7 +179,7 @@ class MultiAgentSimulation:
         controls = [controller.update(time[-1], states[-1], flats[-1])]
         orig_world = copy.deepcopy(self.world)
         # Record number of obstacles in the world before adding the other agents.
-        prev_obstacles = len(world.world['blocks'])
+        prev_obstacles = len(self.world.world['blocks'])
         if shared_data is not None:
             shared_data[threading.get_ident()] = {'time':[], 'positions':[], 'sensor_data':[], 'world':[]}
 
@@ -280,7 +280,7 @@ class MultiAgentSimulation:
         range_sensor = TwoDRangeSensor(data_world, sampling_rate=100, angular_fov=sensor_parameters['angular_fov'], angular_resolution=sensor_parameters['angular_resolution'], fixed_heading=sensor_parameters['fixed_heading'], noise_density=sensor_parameters['noise_density'])
         ranges = range_sensor.measurement(state)
         plot_map(axes[0], data_world.world)
-        self.plot_range(axes, world, pos_t, ranges, range_sensor)
+        self.plot_range(axes, self.world, pos_t, ranges, range_sensor)
 
     def run_sim(self, sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}, 
                 range_sensor_plot=False, visualize=False):
@@ -311,7 +311,7 @@ class MultiAgentSimulation:
 
         if visualize:
                 # Animate. 
-            ani = animate(all_time, all_pos, all_rot, all_wind, animate_wind=False, world=world, filename=None)
+            ani = animate(all_time, all_pos, all_rot, all_wind, animate_wind=False, world=self.world, filename=None)
 
             # Plot the positions of each agent in 3D, alongside collision events (when applicable)
             fig = plt.figure()
@@ -320,7 +320,7 @@ class MultiAgentSimulation:
             for mav in range(all_pos.shape[1]):
                 ax.plot(all_pos[:, mav, 0], all_pos[:, mav, 1], all_pos[:, mav, 2], color=colors[mav])
                 ax.plot([all_pos[-1, mav, 0]], [all_pos[-1, mav, 1]], [all_pos[-1, mav, 2]], '*', markersize=10, markerfacecolor=colors[mav], markeredgecolor='k')
-            world.draw(ax)
+            self.world.draw(ax)
             for event in collisions:
                 ax.plot([all_pos[event['timestep'], event['agents'][0], 0]], [all_pos[event['timestep'], event['agents'][0], 1]], [all_pos[event['timestep'], event['agents'][0], 2]], 'rx', markersize=10)
             ax.set_xlabel("x, m")
