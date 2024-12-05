@@ -12,8 +12,8 @@ config_list = []
 Nc = num_agents
 
 np.random.seed(42)  # For reproducibility
-initial_positions = np.random.uniform(low=1, high=3, size=(num_agents, 2))
-final_positions = np.random.uniform(low=1, high=3, size=(num_agents, 2))
+initial_positions = np.random.uniform(low=0.5, high=1, size=(num_agents, 2))
+final_positions = np.random.uniform(low=3.5, high=4.0, size=(num_agents, 2))
 
 t_offset = 0
 for i in range(num_agents):
@@ -25,4 +25,4 @@ for i in range(num_agents):
 
 # sim = MultiAgentSimulation(world=world, num_agents=num_agents, t_final=10, t_step=1/100, config_list="Cool")
 sim = MultiAgentSimulation(world=world, num_agents=num_agents, t_final=10, t_step=1/100, config_list=config_list)
-sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True)
+results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=False, visualize=False)

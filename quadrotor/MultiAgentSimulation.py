@@ -336,7 +336,7 @@ class MultiAgentSimulation:
                 ani = FuncAnimation(fig, self.update_range_plot, frames=range(0, N), repeat=False, fargs=(shared_data[data], axes, sensor_parameters))
                 plt.show()
 
-
+        return shared_data
 # Main code
 if __name__ == "__main__":
     world = World.grid_forest(n_rows=2, n_cols=2, width=0.5, height=3, spacing=4)
