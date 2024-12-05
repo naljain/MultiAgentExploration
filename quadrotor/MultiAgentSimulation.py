@@ -128,7 +128,7 @@ class MultiAgentSimulation:
         else:
             # Custom
             generated_configs = []
-            for i in range(len(generated_configs)):
+            for i in range(len(config_list)):
                 generated_configs.append((config_list[i][0], config_list[i][1], self.t_final, self.t_step, shared_data))
         
         # Place sensor parameters in config structure
