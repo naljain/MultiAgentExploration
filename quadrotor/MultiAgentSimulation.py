@@ -96,6 +96,31 @@ class MultiAgentSimulation:
         self.t_step = t_step
         self.config_list = config_list
         self.config_defaults = config_defaults
+        self.deg2rad = np.pi/180
+        
+        # Rotorpy World properties
+        bounds = self.world.world['bounds']['extents']
+        obstacles = self.world.world['blocks']
+
+        # Initializing Numpy arrays for planner
+
+        # get size of world
+        x_min, x_max = bounds[0], bounds[1]
+        y_min, y_max = bounds[2], bounds[3]
+        # z_min, z_max = bounds[4], bounds[5]
+        size_x = x_max - x_min
+        size_y = y_max - y_min
+        self.world_positions = np.zeros((size_x, size_y))
+        # Prepared for sensor updating later
+        self.sensor_reading = np.zeros((size_x, size_y))
+        # get obstacle positions in world
+        for obstacle in obstacles:
+            x_min, x_max = obstacle['extents'][0], obstacle['extents'][1]
+            y_min, y_max = obstacle['extents'][2], obstacle['extents'][3]
+            # z_min, z_max = obstacle['extents'][4], obstacle['extents'][5]
+
+            # Converts world to map representation
+            self.world_positions[x_min:x_max, y_min:y_max] = 1
     
     def load_config(self, config_list, shared_data=None, sensor_parameters=None):
         """Loads the configuration list that defines the parameters for each instance. Empty list loads a default configuration based on number of agents.
@@ -181,17 +206,23 @@ class MultiAgentSimulation:
         # Record number of obstacles in the world before adding the other agents.
         prev_obstacles = len(self.world.world['blocks'])
         if shared_data is not None:
-            shared_data[threading.get_ident()] = {'time':[], 'positions':[], 'sensor_data':[], 'world':[]}
+            shared_data[threading.get_ident()] = {'time':[], 'positions':[], 'orientations':[],
+                                                   'sensor_data':[], 'world':[],
+                                                   'world_map_represenation':[], 'sensor_map_represenation':[]}
 
         while True:
             # Update shared data
             if shared_data is not None:
                 shared_data[threading.get_ident()]['positions'].append(states[-1]['x'])
+                shared_data[threading.get_ident()]['orientations'].append(states[-1]['q'])
                 shared_data[threading.get_ident()]['time'].append(time[-1])
+                shared_data[threading.get_ident()]['world_map_represenation'].append(self.world_positions)
                 if sensor_parameters:
                     sensor_data, updated_world = self.sense_from_world(orig_world, shared_data, threading.get_ident(), sensor_parameters)
                     shared_data[threading.get_ident()]['sensor_data'].append(sensor_data)
                     shared_data[threading.get_ident()]['world'].append(copy.deepcopy(updated_world))
+                    if sensor_data is not None:
+                        shared_data[threading.get_ident()]['sensor_map_represenation'].append(self.range_sensor_to_map_representation(states[-1] , sensor_data))
                     # Remove the blocks that were added to the world
                     if orig_world is not None:
                         orig_world.world['blocks'] = orig_world.world['blocks'][:prev_obstacles]
@@ -281,7 +312,36 @@ class MultiAgentSimulation:
         ranges = range_sensor.measurement(state)
         plot_map(axes[0], data_world.world)
         self.plot_range(axes, self.world, pos_t, ranges, range_sensor)
+    def range_sensor_to_map_representation(self, position_data, sensor_data):
+        map = copy.deepcopy(self.sensor_reading)
+        x = int(position_data['x'][0])
+        y = int(position_data['x'][1])
+        # orientation = Rotation.fromposition_data['q'] # If fixed heading, no need to adjust
+        
+        for theta, r in enumerate(sensor_data):
+            x_new = np.ceil(x + r*np.cos(theta*self.deg2rad)).astype(int)
+            y_new = np.ceil(y + r*np.sin(theta*self.deg2rad)).astype(int)
+            if x_new >= 0 and x_new < map.shape[0] and y_new >= 0 and y_new < map.shape[1]:
+                map[x_new, y_new] = 1
+        return map
+    # def results_for_planner(self, shared_data):
+    #     """
+    #     Extracts the relevant data from the shared data structure for the motion planner. 
+    #     Inputs:
+    #         shared_data: a list of dictionaries where each dictionary contains the time, positions, sensor data, and world state for each agent. 
+    #     Outputs:
+    #         planner_data: a list of dictionaries where each dictionary contains the time, positions, sensor data, and world state for each agent. 
+    #     """
+    #     planner_data = []
+    #     for data in shared_data:
+    #         planner_data.append({
+    #             'time': data['time'],
+    #             'positions': data['positions'],
+    #             'sensor_data': data['sensor_data'],
+    #             'world': data['world']
+    #         })
 
+    #     return planner_data
     def run_sim(self, sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}, 
                 range_sensor_plot=False, visualize=False):
         data = {}
@@ -339,9 +399,9 @@ class MultiAgentSimulation:
         return shared_data
 # Main code
 if __name__ == "__main__":
-    world = World.grid_forest(n_rows=2, n_cols=2, width=0.5, height=3, spacing=4)
+    world = World.grid_forest(n_rows=2, n_cols=2, width=1, height=3, spacing=4)
     sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}
     # sensor_parameters = None
 
     sim = MultiAgentSimulation(world=world, num_agents=3, t_final=10, t_step=1/100, config_list="Cool")
-    sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True)
+    results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True)
