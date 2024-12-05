@@ -5,11 +5,8 @@ from collections import deque
 import numpy as np
 from queue import PriorityQueue
 
-'''
-1) sensor gets input of map 
-2) agent plans where to go based on sensor info 
-'''
 
+# TODO : add hybrid CBS functions
 
 class PathFinding:
     def __init__(self, map, agents, start_pos, goal_pos, three_d=False):
@@ -24,6 +21,10 @@ class PathFinding:
         UNKNOWN = -1
         FREE = 0
         OCCUPIED = 1
+
+        1) sensor gets input of map
+        2) agent plans where to go based on sensor info
+
         """
 
         self.map = map
