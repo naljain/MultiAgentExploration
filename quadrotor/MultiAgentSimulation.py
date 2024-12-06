@@ -4,60 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 import copy
-class ThreadPoolManager:
-    def __init__(self, num_threads, worker_fn=None):
-        self.pool = ThreadPool(num_threads=num_threads, worker_fn=worker_fn)
-
-    def __enter__(self):
-        return self.pool
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.pool.close()
-        self.pool.join()
-
-class ThreadPool:
-    def __init__(self, num_threads, worker_fn=None):
-        self.num_threads = num_threads
-        self.tasks = queue.Queue()
-        self.results = []
-        self.lock = threading.Lock()
-        self.workers = []
-        self.worker_fn = worker_fn
-
-    def worker(self):
-        while True:
-            task = self.tasks.get()
-            if task is None:
-                self.tasks.task_done()
-                break
-            result = self.worker_fn(task)
-            with self.lock:
-                self.results.append(result)
-            self.tasks.task_done()
-
-    def map(self, func, iterable):
-        self.results = []
-        self.workers = []
-        for _ in range(self.num_threads):
-            t = threading.Thread(target=self.worker)
-            t.start()
-            self.workers.append(t)
-
-        for item in iterable:
-            self.tasks.put(item)
-        
-        self.tasks.join()
-        return self.results
-    
-    def close(self):
-        for _ in range(self.num_threads):
-            self.tasks.put(None)
-
-    def join(self):
-        for worker in self.workers:
-            worker.join()
-
-
 from rotorpy.vehicles.multirotor import Multirotor
 from rotorpy.vehicles.crazyflie_params import quad_params
 from rotorpy.controllers.quadrotor_control import SE3Control
@@ -79,7 +25,7 @@ class MultiAgentSimulation:
     The primary goal is to pass position data of agents which serve as 'obstacles' to other agents. 
     Each agent can then measure range data from the world and pass it to a motion planner.
     """
-    def __init__(self, world, num_agents, t_final=10, t_step=1/100, config_list=[], config_defaults="",):
+    def __init__(self,thread_manager, world, num_agents, t_final=10, t_step=1/100, config_list=[], config_defaults="",):
         """Initializes the MultiAgentSimulation class with variables for the high-level multi-simulation and constant parameters for each instance.
 
         Args:
@@ -89,7 +35,8 @@ class MultiAgentSimulation:
             config_list (list, optional): list of configurations that define instances. Includes time_offset, trajectory. Defaults to [].
             config_defaults (str, optional): Default configuration for each instance. ['Hover', 'Cool' >B-)] Defaults to "".
             visualize (bool, optional): Plot simulation. Defaults to False.
-        """        
+        """
+        self.Manager = thread_manager        
         self.world = world
         self.num_agents = num_agents
         self.t_final = t_final
@@ -164,7 +111,8 @@ class MultiAgentSimulation:
         return generated_configs
     
     def worker_fn(self, cfg):
-        return self.single_agent_sim(*cfg[:-2], shared_data=cfg[-2], sensor_parameters=cfg[-1])
+        # return self.single_agent_sim(*cfg[:-2], shared_data=cfg[-2], sensor_parameters=cfg[-1])
+        return self.single_agent_sim(*cfg)
     
     def sense_from_world(self, world, position_data, thread_id, sensor_parameters):
         current_position = {'x':position_data[thread_id]['positions'][-1]}
@@ -329,7 +277,7 @@ class MultiAgentSimulation:
                 range_sensor_plot=False, visualize=False):
         data = {}
 
-        with ThreadPoolManager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
+        with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
             config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
             results = pool.map(pool.worker_fn, config_list)
         
@@ -382,10 +330,17 @@ class MultiAgentSimulation:
         return shared_data
 # Main code
 if __name__ == "__main__":
+    import sys
+    import os 
+    cwd = os.getcwd()
+    sys.path.insert(0, cwd)
+    from simulation_threading.ThreadPool import ThreadPoolManager
+
+
     world = World.grid_forest(n_rows=2, n_cols=2, width=1, height=3, spacing=4)
     sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}
     # sensor_parameters = None
 
-    sim = MultiAgentSimulation(world=world, num_agents=3, t_final=10, t_step=1/100, config_list="Cool")
+    sim = MultiAgentSimulation(thread_manager=ThreadPoolManager, world=world, num_agents=3, t_final=10, t_step=1/100, config_list="Cool")
     results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True)
     print(results)
