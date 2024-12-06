@@ -1,5 +1,4 @@
 import threading
-import queue
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
