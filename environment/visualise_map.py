@@ -82,9 +82,14 @@ def plot_2d_map(map_array, title="2D Map Visualization"):
 if __name__ == "__main__":
     # Create a sample 2D numpy array (map)
     e1 = map.Environment((30, 30, 30), 8, 4, three_d= True)
-    e1.build_map()
-    plot_3d_map(e1.map, title="Sample 2D Map")
-    print(e1.map)
+    e2 = map.Environment((100, 100), 10, 0, three_d= False)
+
+    e2.build_map()
+    # plot_3d_map(e1.map, title="Sample 2D Map")
+    plot_2d_map(e2.map, title="Sample 2D Map")
+    np.savetxt('../src/test_map', e2.map)
+    print(e2.map)
+    # print(e1.map)
 
 
 

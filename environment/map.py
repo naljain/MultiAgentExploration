@@ -8,10 +8,14 @@ Map is represented as either [x,y] or [x,y,z] array where:
 0 : open space
 1 : obstacle
 3 : goals
+
+should be in a different map instance
 5 : discovered area
 6 : undiscovered area 
 
-# TODO : not sure if 5, 6 should be here or on another map copy
+# TODO : 
+a) not sure if 5, 6 should be here or on another map copy
+b) add walls so we know when we reach the edge of the environment 
 """
 
 
@@ -86,11 +90,14 @@ class Environment:
                 self.map[goal_x, goal_y, goal_z] = 3
 
             else:
-                goal_x = random.randint(1, self.x)
-                goal_y = random.randint(1, self.y)
+                goal_x = random.randint(1, self.x-1)
+                goal_y = random.randint(1, self.y-1)
                 self.map[goal_x, goal_y] = 3
 
             # TODO add check if goal is created on top of obstacle / unreachable
+
+        def save_map(self, name, path):
+            pass
 
     def check_collision(self, pose):
         pass
