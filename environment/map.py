@@ -90,8 +90,8 @@ class Environment:
                 self.map[goal_x, goal_y, goal_z] = 3
 
             else:
-                goal_x = random.randint(1, self.x)
-                goal_y = random.randint(1, self.y)
+                goal_x = random.randint(1, self.x-1)
+                goal_y = random.randint(1, self.y-1)
                 self.map[goal_x, goal_y] = 3
 
             # TODO add check if goal is created on top of obstacle / unreachable
