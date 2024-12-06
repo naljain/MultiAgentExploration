@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 # TODO : add hybrid CBS functions
 
 class PathFinding:
-    def __init__(self, map, agents, start_pos, goal_pos, three_d=False):
+    def __init__(self, map, agents, start_pos, goal_pos,uknown_travel, three_d=False):
         """
         map : current explored map
         agents : num of agents present
@@ -22,6 +22,7 @@ class PathFinding:
         UNKNOWN = -1
         FREE = 0
         OCCUPIED = 1
+        BLOATED = 2
 
         1) sensor gets input of map
         2) agent plans where to go based on sensor info
@@ -34,6 +35,7 @@ class PathFinding:
         self.start_pos = start_pos
         print(start_pos)
         self.goal_pos = goal_pos
+        self.unknown_travel = uknown_travel
 
         self.grid = copy.deepcopy(map)
         if three_d:
@@ -48,6 +50,9 @@ class PathFinding:
 
         directions = [(0, 1), (0, -1), (-1, 0), (1, 0), (-1, 1), (1, 1),
                       (-1, -1), (1, -1)]
+
+        # directions = [(0, 1), (0, -1), (-1, 0), (1, 0)]
+
         for dir in directions:
             dx, dy = dir
             new_x = dx + x
@@ -56,8 +61,14 @@ class PathFinding:
             if new_x >= self.x_max or new_x < 0 or new_y >= self.y_max or new_y < 0:
                 continue
             # if new_x, new_y is in obstacle, continue
-            if self.grid[new_x][new_y] == 1:
-                continue
+            if self.unknown_travel:
+                if self.grid[new_x][new_y] == 1 or self.grid[new_x][new_y] == 2:
+                    continue
+            else:
+                if self.grid[new_x][new_y] == 1 or self.grid[new_x][new_y] == 2 or self.grid[new_x][new_y] == -1:
+                    continue
+
+
             yield dir
 
     def valid_move(self):
@@ -76,6 +87,7 @@ class PathFinding:
             x2, y2 = p2
             d = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
         return d
+
 
     def a_star(self, agent_id):
         # Node is defined as n = (f, g, (x, y), parent)
@@ -123,6 +135,14 @@ class PathFinding:
 
     def jps(self, agent_id):
         pass
+
+    def all_a_star(self):
+        paths = {}
+        for agent_id in range(1, self.agents + 1):
+            path = self.a_star(
+                agent_id)  # Find a path using A* without constraints
+            paths[agent_id] = path
+        return paths
 
     # def cbs(self):
     #     # return dictionary of waypoints for each agent
