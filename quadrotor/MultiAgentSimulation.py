@@ -324,24 +324,7 @@ class MultiAgentSimulation:
             if x_new >= 0 and x_new < map.shape[0] and y_new >= 0 and y_new < map.shape[1]:
                 map[x_new, y_new] = 1
         return map
-    # def results_for_planner(self, shared_data):
-    #     """
-    #     Extracts the relevant data from the shared data structure for the motion planner. 
-    #     Inputs:
-    #         shared_data: a list of dictionaries where each dictionary contains the time, positions, sensor data, and world state for each agent. 
-    #     Outputs:
-    #         planner_data: a list of dictionaries where each dictionary contains the time, positions, sensor data, and world state for each agent. 
-    #     """
-    #     planner_data = []
-    #     for data in shared_data:
-    #         planner_data.append({
-    #             'time': data['time'],
-    #             'positions': data['positions'],
-    #             'sensor_data': data['sensor_data'],
-    #             'world': data['world']
-    #         })
 
-    #     return planner_data
     def run_sim(self, sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}, 
                 range_sensor_plot=False, visualize=False):
         data = {}
@@ -405,3 +388,4 @@ if __name__ == "__main__":
 
     sim = MultiAgentSimulation(world=world, num_agents=3, t_final=10, t_step=1/100, config_list="Cool")
     results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True)
+    print(results)
