@@ -74,6 +74,6 @@ start = {1: (0, 0), 2: (0, 20)}
 
 # {1: (16, 49), 2: (44, 49), 3: (97, 49)}
 # {1: (0, 0), 2: (3, 0), 3: (6, 0)}
-map = np.loadtxt('test_map')
+map = np.loadtxt('test_map1')
 mapbloat = bloat_obstacles(map, 2)
 plot_2d_map(mapbloat, start, goal, 2)

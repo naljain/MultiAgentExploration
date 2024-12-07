@@ -287,6 +287,7 @@ class GlobalPlanner():
             if plotting:
                 self.visualise_frontier(clusters, frontier, start_pos, goal_pos,
                                         waypoints)
+            return goal_pos
             break
 
     def worker_fn(self):
@@ -375,7 +376,7 @@ class GlobalPlanner():
 
 
 if __name__ == "__main__":
-    map = np.loadtxt('test_map') # each grid space in map is 10 cm x 10 cm
+    map = np.loadtxt('test_map1') # each grid space in map is 10 cm x 10 cm
 
     agents = {1 : 123} #, 2: 343, 3: 4444, 4: 444245, 5:13434} # dict = {agent num : agent id}
     time_step = 1

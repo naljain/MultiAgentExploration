@@ -28,7 +28,7 @@ for i in range(num_agents):
     t_offset += 0.5
 Manager = ThreadPoolManager
 
-map = np.loadtxt('./src/test_map')
+map = np.loadtxt('src/test_map1')
 
 agents = {1: 123}  # , 2: 343, 3: 4444, 4: 444245, 5:13434} # dict = {agent num : agent id}
 time_step = 1

@@ -87,7 +87,7 @@ if __name__ == "__main__":
     e2.build_map()
     # plot_3d_map(e1.map, title="Sample 2D Map")
     plot_2d_map(e2.map, title="Sample 2D Map")
-    np.savetxt('../src/test_map', e2.map)
+    np.savetxt('../src/test_map1', e2.map)
     print(e2.map)
     # print(e1.map)
 
