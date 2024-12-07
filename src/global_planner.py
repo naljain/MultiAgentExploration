@@ -36,6 +36,7 @@ class GlobalPlanner():
 
         ### UNCOMMENT THIS AFTER ###
         self.sensor_range = senor_range
+        self.bloat_size = bloat_size
 
         # Map maintained by global planner as agents explore and update
         self.explored_map = np.ones(global_map.shape) * -1
@@ -361,10 +362,12 @@ class GlobalPlanner():
         # Add legend
         from matplotlib.patches import Patch
         legend_elements = [
-            Patch(facecolor="white", label="Explored"),
-            Patch(facecolor="lightblue", label="Unexplored"),
+            Patch(facecolor="white", label="Explored Area"),
+            Patch(facecolor="lightblue", label="Unexplored Area"),
+            Patch(facecolor="blue", label = "Agents"),
+            Patch(facecolor= 'red', label = "Goals")
         ]
-        # ax.legend(handles=legend_elements, loc="upper right")
+        ax.legend(handles=legend_elements, loc="upper right")
 
         # Show the plot
         print('plotting')
@@ -374,13 +377,14 @@ class GlobalPlanner():
 if __name__ == "__main__":
     map = np.loadtxt('test_map') # each grid space in map is 10 cm x 10 cm
 
-    agents = {1 : 123, 2: 343, 3: 4444, 4: 444245, 5:13434} # dict = {agent num : agent id}
+    agents = {1 : 123} #, 2: 343, 3: 4444, 4: 444245, 5:13434} # dict = {agent num : agent id}
     time_step = 1
 
     bloat_val = 4  # BLOAT_VAL > RADIUS OF DRONE
     unknown_travel = True
     senor_range = 3 # 30 cm
 
+    # global_map, agents, time_step, bloat_size, senor_range, unknown_travel):
     planner = GlobalPlanner(map, agents, time_step, bloat_val,senor_range,
                             unknown_travel)
     planner.run_planner(plotting=True)
