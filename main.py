@@ -3,6 +3,8 @@ from rotorpy.world import World
 from rotorpy.trajectories.minsnap import MinSnap
 import numpy as np
 from src.global_planner import GlobalPlanner
+from src.path_planning import PathFinding
+
 from simulation_threading.ThreadPool import ThreadPoolManager
 
 world = World.grid_forest(n_rows=2, n_cols=2, width=1, height=3, spacing=4)
@@ -27,14 +29,14 @@ for i in range(num_agents):
 Manager = ThreadPoolManager
 
 map = np.loadtxt('./src/test_map')
-num_agents = 1
+# num_agents = 1
 start_pos = {1: (0, 0), 2: (10, 0), 3: (20, 0)}  # , 4: (9, 0), 5: (11,0)}
 time_step = 1
 
 bloat_val = 4  # BLOAT_VAL > RADIUS OF DRONE
 unknown_travel = True
 
-Planner = GlobalPlanner(map, num_agents, start_pos, time_step, bloat_val,
+Planner = GlobalPlanner(map, 1, start_pos, time_step, bloat_val,
                         unknown_travel)
 
 # sim = MultiAgentSimulation(world=world, num_agents=num_agents, t_final=10, t_step=1/100, config_list="Cool")

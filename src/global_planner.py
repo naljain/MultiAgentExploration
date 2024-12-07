@@ -1,4 +1,4 @@
-from .path_planning import PathFinding
+from src.path_planning import PathFinding
 import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
 import numpy as np
@@ -207,29 +207,31 @@ class GlobalPlanner():
             6) regenerate goals
         """
         # Generate goals
-        num_agents = self.agents
-        self.bloat_obstacles()  # BLOATING OBSTACLES HAS TO BE BEFORE FRONTIER
-        frontier = self.find_frontier()
-        clusters = self.find_clusters_dbscan()
-        if len(clusters) <= num_agents:
-            cluster_size = sum(
-                len(sublist) for sublist in clusters) // num_agents
-            clusters = self.split_large_clusters(clusters, cluster_size)
-        start_pos = self.start_pos
-        goal_pos, goals = self.generate_goals(frontier, clusters)
-        print(goal_pos)
-        path_plan = PathFinding(self.explored_map, self.agents,
-                                              start_pos, goal_pos,
-                                              self.unknown_travel)
-        waypoints = path_plan.cbs()
-        # waypoints = path_plan.all_a_star()
-        print(waypoints)
-        if plotting:
-            self.visualise_frontier(clusters, frontier, start_pos, goal_pos,
-                                    waypoints)
+        while True:
+            num_agents = self.agents
+            self.bloat_obstacles()  # BLOATING OBSTACLES HAS TO BE BEFORE FRONTIER
+            frontier = self.find_frontier()
+            clusters = self.find_clusters_dbscan()
+            if len(clusters) <= num_agents:
+                cluster_size = sum(
+                    len(sublist) for sublist in clusters) // num_agents
+                clusters = self.split_large_clusters(clusters, cluster_size)
+            start_pos = self.start_pos
+            goal_pos, goals = self.generate_goals(frontier, clusters)
+            print(goal_pos)
+            path_plan = PathFinding(self.explored_map, self.agents,
+                                                  start_pos, goal_pos,
+                                                  self.unknown_travel)
+            waypoints = path_plan.cbs()
+            # waypoints = path_plan.all_a_star()
+            print(waypoints)
+            if plotting:
+                self.visualise_frontier(clusters, frontier, start_pos, goal_pos,
+                                        waypoints)
+            break
 
     def worker_fn(self, plotting):
-        return self.run_planner(plotting=True)
+        return self.run_planner(plotting=False)
 
     def visualise_frontier(self, clusters, frontier, start, goals, waypoints):
 
@@ -313,7 +315,7 @@ class GlobalPlanner():
 
 if __name__ == "__main__":
     map = np.loadtxt('test_map')
-    num_agents = 3
+    num_agents = 1
     start_pos = {1: (0, 0), 2: (10, 0), 3: (20, 0)}  # , 4: (9, 0), 5: (11,0)}
     time_step = 1
 
