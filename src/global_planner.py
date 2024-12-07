@@ -230,8 +230,8 @@ class GlobalPlanner():
                                         waypoints)
             break
 
-    def worker_fn(self, plotting):
-        return self.run_planner(plotting=True)
+    def worker_fn(self):
+        return self.run_planner(plotting=False)
 
     def visualise_frontier(self, clusters, frontier, start, goals, waypoints):
 

@@ -279,7 +279,8 @@ class MultiAgentSimulation:
             assert planner_fcn is not None, "Planner function must be provided if planner is True."
             with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn, planner=planner, planner_fnc=planner_fcn) as pool:
                 config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
-                results = pool.map(pool.worker_fn, config_list)
+                config_list.append('planner')
+                results = pool.map(config_list)
         else:
             with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
                 config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
@@ -289,9 +290,9 @@ class MultiAgentSimulation:
         all_pos = []
         all_rot = []
         all_wind = []
-        all_time = results[0][0]
+        all_time = results[-1][0]
 
-        for r in results:
+        for r in results[1:]:
             all_pos.append(r[1]['x'])
             all_wind.append(r[1]['wind'])
             all_rot.append(Rotation.from_quat(r[1]['q']).as_matrix())

@@ -4,14 +4,17 @@ import queue
 
 class ThreadPoolManager:
     def __init__(self, num_threads, worker_fn=None, planner=False, planner_fnc=None):
-        if planner:
-            num_threads += 1
-            worker_fns = [worker_fn, planner_fnc]
-            self.pool = ThreadPool(num_threads=num_threads, worker_fn=worker_fns)
-        else:
-            self.pool = ThreadPool(num_threads=num_threads, worker_fn=[worker_fn])
+        self.num_threads = num_threads
+        self.worker_fn = worker_fn
+        self.planner = planner
+        self.planner_fnc = planner_fnc
 
     def __enter__(self):
+        if self.planner:
+            worker_fns = [self.worker_fn]*self.num_threads + [self.planner_fnc]
+            self.pool = ThreadPool(num_threads=self.num_threads + 1, worker_fns=worker_fns)
+        else:
+            self.pool = ThreadPool(num_threads=self.num_threads, worker_fns=[self.worker_fn])
         return self.pool
     
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -19,13 +22,13 @@ class ThreadPoolManager:
         self.pool.join()
 
 class ThreadPool:
-    def __init__(self, num_threads, worker_fn=None):
+    def __init__(self, num_threads, worker_fns=None):
         self.num_threads = num_threads
         self.tasks = queue.Queue()
         self.results = []
         self.lock = threading.Lock()
         self.workers = []
-        self.worker_fn = worker_fn
+        self.worker_fns = worker_fns
 
     def worker(self, fcn_index):
         while True:
@@ -33,25 +36,20 @@ class ThreadPool:
             if task is None:
                 self.tasks.task_done()
                 break
-            result = self.worker_fn[fcn_index](task)
+            if task == 'planner':
+                result = self.worker_fns[-1]()
+            else:
+                result = self.worker_fns[fcn_index](task)
+
             with self.lock:
                 self.results.append(result)
             self.tasks.task_done()
 
-    def map(self, func, iterable):
+    def map(self, iterable):
         self.results = []
         self.workers = []
-        if len(self.worker_fn) == 1:
-            for _ in range(self.num_threads):
-                t = threading.Thread(target=self.worker, args=(0,))
-                t.start()
-                self.workers.append(t)
-        else:
-            for _ in range(self.num_threads-1):
-                t = threading.Thread(target=self.worker, args=(0,))
-                t.start()
-                self.workers.append(t)
-            t = threading.Thread(target=self.worker, args=(1,))
+        for i in range(self.num_threads):
+            t = threading.Thread(target=self.worker, args=(i % len(self.worker_fns),))
             t.start()
             self.workers.append(t)
 
