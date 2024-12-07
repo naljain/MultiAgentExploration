@@ -10,10 +10,10 @@ import matplotlib.animation as animation
 # TODO : add hybrid CBS functions
 
 class PathFinding:
-    def __init__(self, map, agents, start_pos, goal_pos,uknown_travel, three_d=False):
+    def __init__(self, map, agents, start_pos, goal_pos, uknown_travel, three_d=False):
         """
         map : current explored map
-        agents : num of agents present
+        agents : dict of agents and their id
         start_pos : dictionary of agent ID and corresponding starting position
         goal_pos : dictionary of agent ID and corresponding goal position from global planner
 
@@ -33,7 +33,6 @@ class PathFinding:
         self.agents = agents
         self.three_d = three_d
         self.start_pos = start_pos
-        print(start_pos)
         self.goal_pos = goal_pos
         self.unknown_travel = uknown_travel
 
@@ -138,7 +137,7 @@ class PathFinding:
 
     def all_a_star(self):
         paths = {}
-        for agent_id in range(1, self.agents + 1):
+        for agent_id in range(1, len(self.agents) + 1):
             path = self.a_star(
                 agent_id)  # Find a path using A* without constraints
             paths[agent_id] = path
@@ -166,7 +165,7 @@ class PathFinding:
         }
 
         # Compute initial paths for all agents
-        for agent_id in range(1, self.agents + 1):
+        for agent_id in range(1, len(self.agents) + 1):
             path = self.a_star(
                 agent_id)  # Find a path using A* without constraints
             if path is None:
