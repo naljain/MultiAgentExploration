@@ -20,8 +20,8 @@ from rotorpy.utils.plotter import plot_map
 class MultiAgentSimulation:
     """
     MultiAgentSimulation is a class that simulates multiple agents in parallel using a thread pool.
-    The main purpose of the thread pool is to allow for shared data between instances. 
-    The primary goal is to pass position data of agents which serve as 'obstacles' to other agents. 
+    The main purpose of the thread pool is to allow for shared data between instances.
+    The primary goal is to pass position data of agents which serve as 'obstacles' to other agents.
     Each agent can then measure range data from the world and pass it to a motion planner.
     """
     def __init__(self,thread_manager, world, num_agents, t_final=10, t_step=1/100, config_list=[], config_defaults="",map_resolution=1):
@@ -35,7 +35,7 @@ class MultiAgentSimulation:
             config_defaults (str, optional): Default configuration for each instance. ['Hover', 'Cool' >B-)] Defaults to "".
             visualize (bool, optional): Plot simulation. Defaults to False.
         """
-        self.Manager = thread_manager        
+        self.Manager = thread_manager
         self.world = world
         self.num_agents = num_agents
         self.t_final = t_final
@@ -43,7 +43,7 @@ class MultiAgentSimulation:
         self.config_list = config_list
         self.config_defaults = config_defaults
         self.deg2rad = np.pi/180
-        
+
         # Rotorpy World properties
         bounds = self.world.world['bounds']['extents']
         obstacles = self.world.world['blocks']
@@ -67,13 +67,13 @@ class MultiAgentSimulation:
 
             # Converts world to map representation
             self.world_positions[x_min:x_max, y_min:y_max] = 1
-    
+
     def load_config(self, config_list, shared_data=None, sensor_parameters=None):
         """Loads the configuration list that defines the parameters for each instance. Empty list loads a default configuration based on number of agents.
 
         Args:
             config_list (dict): list of configurations that define instances. Includes time_offset, trajectory.
-        """        
+        """
         if shared_data is None:
             shared_data = {}
 
@@ -101,18 +101,18 @@ class MultiAgentSimulation:
             generated_configs = []
             for i in range(len(config_list)):
                 generated_configs.append((config_list[i][0], config_list[i][1], self.t_final, self.t_step, shared_data))
-        
+
         # Place sensor parameters in config structure
-        # Sensor parameters can be vary for each 
+        # Sensor parameters can be vary for each
         for i in range(len(generated_configs)):
             generated_configs[i] = (*generated_configs[i], sensor_parameters)
 
         return generated_configs
-    
+
     def worker_fn(self, cfg):
         # return self.single_agent_sim(*cfg[:-2], shared_data=cfg[-2], sensor_parameters=cfg[-1])
         return self.single_agent_sim(*cfg)
-    
+
     def sense_from_world(self, world, position_data, thread_id, sensor_parameters):
         current_position = {'x':position_data[thread_id]['positions'][-1]}
         position_data_copy = position_data.copy()
@@ -144,7 +144,7 @@ class MultiAgentSimulation:
             'w': np.zeros(3,),
             'wind': np.array([0,0,0]),  # Since wind is handled elsewhere, this value is overwritten
             'rotor_speeds': np.array([1788.53, 1788.53, 1788.53, 1788.53])}
-        
+
         time = [0]
         states = [x0]
         flats = [trajectory.update(time[-1] + t_offset)]
@@ -181,7 +181,7 @@ class MultiAgentSimulation:
             flats.append(trajectory.update(time[-1] + t_offset))
             controls.append(controller.update(time[-1], states[-1], flats[-1]))
 
-        time        = np.array(time, dtype=float)    
+        time        = np.array(time, dtype=float)
         states      = merge_dicts(states)
         controls    = merge_dicts(controls)
         flats       = merge_dicts(flats)
@@ -190,24 +190,24 @@ class MultiAgentSimulation:
 
     def find_collisions(self, all_positions, epsilon=1e-1):
         """
-        Checks if any two agents get within epsilon meters of any other agent. 
+        Checks if any two agents get within epsilon meters of any other agent.
         Inputs:
-            all_positions: the position vs time for each agent concatenated into one array. 
-            epsilon: the distance threshold constituting a collision. 
+            all_positions: the position vs time for each agent concatenated into one array.
+            epsilon: the distance threshold constituting a collision.
         Outputs:
-            collisions: a list of dictionaries where each dict describes the time of a collision, agents involved, and the location. 
+            collisions: a list of dictionaries where each dict describes the time of a collision, agents involved, and the location.
         """
 
         N, M, _ = all_positions.shape
         collisions = []
 
         for t in range(N):
-            # Get positions. 
+            # Get positions.
             pos_t = all_positions[t]
 
             dist_sq = np.sum((pos_t[:, np.newaxis, :] - pos_t[np.newaxis, :, :])**2, axis=-1)
 
-            # Set diagonal to a large value to avoid false positives. 
+            # Set diagonal to a large value to avoid false positives.
             np.fill_diagonal(dist_sq, np.inf)
 
             close_pairs = np.where(dist_sq < epsilon**2)
@@ -261,20 +261,27 @@ class MultiAgentSimulation:
         self.plot_range(axes, self.world, pos_t, ranges, range_sensor)
     def range_sensor_to_map_representation(self, position_data, sensor_data):
         map = copy.deepcopy(self.sensor_reading)
-        x = int(position_data['x'][0])
-        y = int(position_data['x'][1])
+        x = int(position_data['x'][0])*10
+        y = int(position_data['x'][1])*10
+        x_origin, y_origin = 0, 0
+        dx, dy = x_origin - x, y_origin - y
         # orientation = Rotation.fromposition_data['q'] # If fixed heading, no need to adjust
-        
         for theta, r in enumerate(sensor_data):
-            x_new = np.ceil(x + r*np.cos(theta*self.deg2rad)).astype(int)
-            y_new = np.ceil(y + r*np.sin(theta*self.deg2rad)).astype(int)
-            if x_new > 100 or y_new > 100:
-                print('1')
-            if x_new >= 0 and x_new < map.shape[0] and y_new >= 0 and y_new < map.shape[1]:
-                map[x_new, y_new] = 1
+            if r > 9.9:
+                continue
+            rot_theta = -np.pi
+            R = np.array([[np.cos(rot_theta), -np.sin(rot_theta)], [np.sin(rot_theta), np.cos(rot_theta)]])
+            x_new = ((r*np.sin((theta)*self.deg2rad))*10)
+            y_new = ((r*np.cos((theta)*self.deg2rad))*10)
+
+            rot_coords = np.matmul(R, np.array([x_new, y_new]).T)
+            rot_x = rot_coords[0].astype(int) + x
+            rot_y = rot_coords[1].astype(int) + y
+            if rot_x >= 0 and rot_x < map.shape[0] and rot_y >= 0 and rot_y < map.shape[1]:
+                map[rot_x, rot_y] = 1
         return map
 
-    def run_sim(self, sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}, 
+    def run_sim(self, sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005},
                 range_sensor_plot=False, visualize=False, planner=False, planner_fcn=None):
         data = {}
         if planner:
@@ -287,8 +294,8 @@ class MultiAgentSimulation:
             with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
                 config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
                 results = pool.map(pool.worker_fn, config_list)
-        
-            # Concatentate all the relevant states/inputs for animation. 
+
+            # Concatentate all the relevant states/inputs for animation.
         all_pos = []
         all_rot = []
         all_wind = []
@@ -308,7 +315,7 @@ class MultiAgentSimulation:
         collisions = self.find_collisions(all_pos, epsilon=2e-1)
 
         if visualize:
-                # Animate. 
+                # Animate.
             ani = animate(all_time, all_pos, all_rot, all_wind, animate_wind=False, world=self.world, filename=None)
 
             # Plot the positions of each agent in 3D, alongside collision events (when applicable)
@@ -338,7 +345,7 @@ class MultiAgentSimulation:
 # Main code
 if __name__ == "__main__":
     import sys
-    import os 
+    import os
     cwd = os.getcwd()
     sys.path.insert(0, cwd)
     from simulation_threading.ThreadPool import ThreadPoolManager

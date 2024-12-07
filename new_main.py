@@ -52,8 +52,8 @@ while map_unexplored:
                                    num_agents=num_agents, t_final=10,
                                    t_step=1 / 100, config_list=config_list,map_resolution=10)
         range_sensor = TwoDRangeSensor(world, sampling_rate=100, angular_fov=sensor_parameters['angular_fov'], angular_resolution=sensor_parameters['angular_resolution'], fixed_heading=sensor_parameters['fixed_heading'], noise_density=sensor_parameters['noise_density'])
-        # range_sensor.map_resolution = 0.1
-        range_sensor.Dmax = 200
+        range_sensor.map_resolution = 0.1
+        range_sensor.Dmax = 10
         sensor_data = []
         map_representations = []
         from src.abc import plot_2d_map
