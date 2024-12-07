@@ -3,8 +3,22 @@ Imports
 """
 import numpy as np
 from scipy.spatial.transform import Rotation  # This is a useful library for working with attitude.
+import matplotlib.pyplot as plt
+from numpy.linalg import inv
+from numpy.linalg import cholesky
+from math import sin, cos
+import math
+from scipy.interpolate import interp1d
+from scipy.integrate import ode
+from scipy.integrate import solve_ivp
+from scipy.linalg import expm
+from scipy.linalg import solve_continuous_are
+from pydrake.solvers import MathematicalProgram, Solve, OsqpSolver
+import pydrake.symbolic as sym
 
-class MultirotorControlTemplate(object):
+from pydrake.all import MonomialBasis, OddDegreeMonomialBasis, Variables
+
+class MPC_Controller(object):
     """
     The controller is implemented as a class with two required methods: __init__() and update().
     The __init__() is used to instantiate the controller, and this is where any model parameters or
@@ -76,4 +90,52 @@ class MultirotorControlTemplate(object):
                          'cmd_w':cmd_w,
                          'cmd_v':cmd_v}
         return control_input
+
+    def add_intial_state_constraint(self, prog, x, x_current):
+        pass
+
+    def add_final_state_constraints(self):
+        pass
+
+
+    def add_input_saturation_constraint(self, prog, x, u, N):
+        pass
+
+    def add_dynamics_constraint(self):
+        pass
+
+    def add_barrier_agent_contraint(self):
+        pass
+
+    def add_barrier_obstacle_constraint(self):
+        pass
+
+    def add_cost(self):
+        pass
+
+    def compute_mpc_feedback(self):
+
+        # QP params
+        N = 10  # number of waypoints -- TODO comes from planner
+        T = 0.1 # time step
+
+
+        # initialise mathematical program
+
+        prog = MathematicalProgram()
+
+        # intialise decision variables
+
+        # add constraints
+
+        # add cost
+
+        # solve the QP
+
+        # get u_mpc
+
+
+
+
+
 

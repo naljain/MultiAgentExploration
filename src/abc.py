@@ -66,16 +66,14 @@ def bloat_obstacles(map, bloat_size):
                                     map[nx][ny] = 2
     return map
 
-goal = {1: (16, 49), 2: (49, 49), 3: (83, 49)}
+goal = {1: (3, 23), 2: (3, 22)}
 
 
-
-
-start = {1: (0, 0), 2: (3, 0), 3: (6, 0)}
+start = {1: (0, 0), 2: (0, 20)}
 
 
 # {1: (16, 49), 2: (44, 49), 3: (97, 49)}
 # {1: (0, 0), 2: (3, 0), 3: (6, 0)}
 map = np.loadtxt('test_map')
 mapbloat = bloat_obstacles(map, 2)
-plot_2d_map(mapbloat, start, goal, 3)
+plot_2d_map(mapbloat, start, goal, 2)

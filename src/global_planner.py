@@ -6,6 +6,8 @@ import random
 import threading
 import queue
 
+from sklearn.cluster import KMeans
+import numpy as np
 
 class GlobalPlanner():
     """
@@ -20,27 +22,44 @@ class GlobalPlanner():
         TODO : when number of goals < num of agents
     """
 
-    def __init__(self, global_map, agents, start_pos, time_step, bloat_size,
-                 unknown_travel):
+    def __init__(self, global_map, agents, time_step, bloat_size, senor_range, unknown_travel):
         # Map of actual environment
         self.global_map = global_map
         self.x_max, self.y_max = self.global_map.shape
         # print(self.x_max, self.y_max)
-        self.start_pos = start_pos
+        # self.start_pos = start_pos
 
         ### FOR TESTING ONLY - REMOVE WHEN CLUSTERING/GOAL PICKING DONE ###
-        self.explored_map = global_map
-        self.explored_map[:, 50:] = -1
-        # self.explored_map[40:80, 30:45] = -1
+        # self.explored_map = global_map
+        # self.explored_map[:, 50:] = -1
+        # # self.explored_map[40:80, 30:45] = -1
 
         ### UNCOMMENT THIS AFTER ###
-        # Map maintained by global planner as agents explore and upate
-        # self.explored_map = np.ones(global_map.shape) * -1
-        # self.explored_map[0][0] = 0
+        self.sensor_range = senor_range
+
+        # Map maintained by global planner as agents explore and update
+        self.explored_map = np.ones(global_map.shape) * -1
+        start_pos_difference = 10 # initialise the starting position of all drones
+        self.start_pos = {}
+        for i in range(len(agents)):
+            x_i = start_pos_difference*i
+            y_i = 0
+            self.start_pos[i + 1] = (x_i, y_i)
+            self.explored_map[x_i][y_i] = self.global_map[x_i][y_i]
+            # at the start, all map area in sensor range is known
+            for dx in range(-self.sensor_range, self.sensor_range + 1):
+                for dy in range(-self.sensor_range, self.sensor_range + 1):
+                    nx, ny = x_i + dx, y_i + dy
+                    if 0 <= nx < self.x_max and 0 <= ny < self.y_max:
+                        self.explored_map[nx][ny] = self.global_map[nx][ny]
+
+        self.bloat_obstacles()
+        print('start pose and inti' , self.start_pos)
 
         assert (self.explored_map.shape == self.global_map.shape)
 
         self.agents = agents
+        self.num_agents = len(self.agents)
         self.time_step = time_step
         self.bloat_size = bloat_size
         self.unknown_travel = unknown_travel
@@ -99,7 +118,32 @@ class GlobalPlanner():
                                 frontier.append((x, y))
         return frontier
 
-    def find_clusters_dbscan(self):
+
+
+    def cluster_frontiers_kmeans(self, n_clusters, frontier):
+        map = self.explored_map
+        unexplored = [(x, y) for x in range(len(map)) for y in
+                      range(len(map[0])) if map[x][y] == -1]
+        if not unexplored:
+            return []
+
+        unexplored_array = np.array(unexplored)
+
+        # Convert frontier list to a numpy array
+        # frontier_array = np.array(frontier)
+
+        # Perform K-Means clustering
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        kmeans.fit(frontier)
+
+        # Extract clusters based on K-Means labels
+        clusters = [[] for _ in range(n_clusters)]
+        for cell, label in zip(frontier, kmeans.labels_):
+            clusters[label].append(cell)
+        print('cluster ', clusters)
+        return clusters
+
+    def find_clusters_dbscan(self, frontier):
         """
         Finds clusters of unexplored cells using DBSCAN.
         """
@@ -111,17 +155,27 @@ class GlobalPlanner():
 
         unexplored_array = np.array(unexplored)
 
-        clustering = DBSCAN(eps=2, min_samples=2).fit(unexplored_array)
+        # clustering = DBSCAN(eps=2, min_samples=2).fit(unexplored_array)
+        clustering = DBSCAN(eps=3, min_samples=5).fit(frontier)
 
         # Extract clusters
         clusters = {}
-        for point, label in zip(unexplored, clustering.labels_):
+        # for point, label in zip(unexplored, clustering.labels_):
+        #     if label == -1:  # Noise (unclustered points)
+        #         continue
+        #     if label not in clusters:
+        #         clusters[label] = []
+        #     clusters[label].append(point)
+        # return list(clusters.values())
+        for point, label in zip(frontier, clustering.labels_):
             if label == -1:  # Noise (unclustered points)
                 continue
             if label not in clusters:
                 clusters[label] = []
             clusters[label].append(point)
+        print('clusters: ', list(clusters.values()))
         return list(clusters.values())
+
 
     def split_large_clusters(self, clusters, max_size=5):
         """
@@ -182,7 +236,8 @@ class GlobalPlanner():
     def generate_goals(self, frontier, clusters):
         goals_pos = {}
         goals = []
-        for i in range(self.agents):
+
+        for i in range(self.num_agents):
             centroid = self.compute_centroid(clusters[i])
             xg, yg = self.find_closest_frontier(frontier, centroid)
             goals_pos[i + 1] = (xg, yg)
@@ -208,13 +263,16 @@ class GlobalPlanner():
         """
         # Generate goals
         while True:
-            num_agents = self.agents
+            num_agents = self.num_agents
             self.bloat_obstacles()  # BLOATING OBSTACLES HAS TO BE BEFORE FRONTIER
             frontier = self.find_frontier()
-            clusters = self.find_clusters_dbscan()
-            if len(clusters) <= num_agents:
+            clusters = self.find_clusters_dbscan(frontier)
+            # clusters = self.cluster_frontiers_kmeans(num_agents, frontier)
+            if len(clusters) < num_agents:
+                print(len(clusters), num_agents)
                 cluster_size = sum(
                     len(sublist) for sublist in clusters) // num_agents
+                print('breaking clusters into smaller')
                 clusters = self.split_large_clusters(clusters, cluster_size)
             start_pos = self.start_pos
             goal_pos, goals = self.generate_goals(frontier, clusters)
@@ -265,22 +323,22 @@ class GlobalPlanner():
                     color = 'pink'
                 ax.add_patch(plt.Rectangle((y, x), 1, 1, color=color))
         i = 0
-        # for cluster in dbscan:
-        #     r = random.random()
-        #     b = random.random()
-        #     g = random.random()
-        #     c = (r,g,b)
-        #     for (x, y) in cluster:
-        #         ax.scatter(y + 0.5, x + 0.5, color = c)
-        #     i += 1
+        for cluster in dbscan:
+            r = random.random()
+            b = random.random()
+            g = random.random()
+            c = (r,g,b)
+            for (x, y) in cluster:
+                ax.scatter(y + 0.5, x + 0.5, color = c)
+            i += 1
 
-        for i in range(self.agents):
+        for i in range(self.num_agents):
             goal_x, goal_y = goals[i + 1]
             start_x, start_y = start[i + 1]
             ax.scatter(goal_y + 0.5, goal_x + 0.5, color='red')
             ax.scatter(start_y + 0.5, start_x + 0.5, color='blue')
 
-        for i in range(self.agents):
+        for i in range(self.num_agents):
             path = waypoints[i + 1]
             if path:
                 path_x = [y + 0.5 for x, y in path]
@@ -314,14 +372,15 @@ class GlobalPlanner():
 
 
 if __name__ == "__main__":
-    map = np.loadtxt('test_map')
-    num_agents = 1
-    start_pos = {1: (0, 0), 2: (10, 0), 3: (20, 0)}  # , 4: (9, 0), 5: (11,0)}
+    map = np.loadtxt('test_map') # each grid space in map is 10 cm x 10 cm
+
+    agents = {1 : 123, 2: 343, 3: 4444, 4: 444245, 5:13434} # dict = {agent num : agent id}
     time_step = 1
 
     bloat_val = 4  # BLOAT_VAL > RADIUS OF DRONE
     unknown_travel = True
+    senor_range = 3 # 30 cm
 
-    planner = GlobalPlanner(map, num_agents, start_pos, time_step, bloat_val,
+    planner = GlobalPlanner(map, agents, time_step, bloat_val,senor_range,
                             unknown_travel)
     planner.run_planner(plotting=True)
