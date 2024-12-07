@@ -273,12 +273,17 @@ class MultiAgentSimulation:
         return map
 
     def run_sim(self, sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}, 
-                range_sensor_plot=False, visualize=False):
+                range_sensor_plot=False, visualize=False, planner=False, planner_fcn=None):
         data = {}
-
-        with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
-            config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
-            results = pool.map(pool.worker_fn, config_list)
+        if planner:
+            assert planner_fcn is not None, "Planner function must be provided if planner is True."
+            with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn, planner=planner, planner_fnc=planner_fcn) as pool:
+                config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
+                results = pool.map(pool.worker_fn, config_list)
+        else:
+            with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
+                config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
+                results = pool.map(pool.worker_fn, config_list)
         
             # Concatentate all the relevant states/inputs for animation. 
         all_pos = []

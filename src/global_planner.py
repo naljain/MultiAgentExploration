@@ -1,4 +1,4 @@
-import path_planning
+from .path_planning import PathFinding
 import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
 import numpy as np
@@ -218,7 +218,7 @@ class GlobalPlanner():
         start_pos = self.start_pos
         goal_pos, goals = self.generate_goals(frontier, clusters)
         print(goal_pos)
-        path_plan = path_planning.PathFinding(self.explored_map, self.agents,
+        path_plan = PathFinding(self.explored_map, self.agents,
                                               start_pos, goal_pos,
                                               self.unknown_travel)
         waypoints = path_plan.cbs()
