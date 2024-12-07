@@ -1,6 +1,7 @@
 import math
 import random
 import numpy as np
+import json
 
 """
 Map is represented as either [x,y] or [x,y,z] array where:
@@ -98,9 +99,28 @@ class Environment:
 
         def save_map(self, name, path):
             pass
+def generate_array_from_file(file_path):
+    # Read the JSON file
+    with open(file_path, 'r') as file:
+        json_data = json.load(file)
 
-    def check_collision(self, pose):
-        pass
+    bounds = json_data['bounds']['extents']
+    blocks = json_data['blocks'] *10
 
-    def check_valid_move(self, move):
-        pass
+    # Create an empty numpy array with the given bounds
+    x_size = (bounds[1] - bounds[0])*10
+    y_size = (bounds[3] - bounds[2])*10
+    array = np.zeros((x_size, y_size), dtype=int)
+
+    # Fill the array with ones for each block
+    for block in blocks:
+        x_min, x_max, y_min, y_max, z_min, z_max = block['extents']
+        array[x_min*10:x_max*10, y_min*10:y_max*10] = 1
+
+    return array
+
+    # Usage example
+file_path = './environment/dummy.json'
+result_array = generate_array_from_file(file_path)
+print(result_array)
+np.savetxt('src/test_map2', result_array)

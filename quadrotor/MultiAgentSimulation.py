@@ -24,7 +24,7 @@ class MultiAgentSimulation:
     The primary goal is to pass position data of agents which serve as 'obstacles' to other agents. 
     Each agent can then measure range data from the world and pass it to a motion planner.
     """
-    def __init__(self,thread_manager, world, num_agents, t_final=10, t_step=1/100, config_list=[], config_defaults="",):
+    def __init__(self,thread_manager, world, num_agents, t_final=10, t_step=1/100, config_list=[], config_defaults="",map_resolution=1):
         """Initializes the MultiAgentSimulation class with variables for the high-level multi-simulation and constant parameters for each instance.
 
         Args:
@@ -54,15 +54,15 @@ class MultiAgentSimulation:
         x_min, x_max = bounds[0], bounds[1]
         y_min, y_max = bounds[2], bounds[3]
         # z_min, z_max = bounds[4], bounds[5]
-        size_x = x_max - x_min
-        size_y = y_max - y_min
+        size_x = (x_max - x_min).astype(int)*map_resolution
+        size_y = (y_max - y_min).astype(int)*map_resolution
         self.world_positions = np.zeros((size_x, size_y))
         # Prepared for sensor updating later
         self.sensor_reading = np.zeros((size_x, size_y))
         # get obstacle positions in world
         for obstacle in obstacles:
-            x_min, x_max = obstacle['extents'][0], obstacle['extents'][1]
-            y_min, y_max = obstacle['extents'][2], obstacle['extents'][3]
+            x_min, x_max = (obstacle['extents'][0] * map_resolution).astype(int), (obstacle['extents'][1] * map_resolution).astype(int)
+            y_min, y_max = (obstacle['extents'][2] * map_resolution).astype(int), (obstacle['extents'][3] * map_resolution).astype(int)
             # z_min, z_max = obstacle['extents'][4], obstacle['extents'][5]
 
             # Converts world to map representation
@@ -268,6 +268,8 @@ class MultiAgentSimulation:
         for theta, r in enumerate(sensor_data):
             x_new = np.ceil(x + r*np.cos(theta*self.deg2rad)).astype(int)
             y_new = np.ceil(y + r*np.sin(theta*self.deg2rad)).astype(int)
+            if x_new > 100 or y_new > 100:
+                print('1')
             if x_new >= 0 and x_new < map.shape[0] and y_new >= 0 and y_new < map.shape[1]:
                 map[x_new, y_new] = 1
         return map

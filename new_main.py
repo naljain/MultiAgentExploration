@@ -9,10 +9,12 @@ from src.global_planner import GlobalPlanner
 from src.path_planning import PathFinding
 
 from simulation_threading.ThreadPool import ThreadPoolManager
+from rotorpy.sensors.range_sensors import TwoDRangeSensor
 
 #sim params
-map = np.loadtxt('src/test_map1')
-world = World.grid_forest(n_rows=2, n_cols=2, width=2, height=3, spacing=20)
+map = np.loadtxt('src/test_map2')
+# world = World.grid_forest(n_rows=2, n_cols=2, width=2, height=3, spacing=20)
+world = World.from_file('./environment/dummy.json')
 sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}
 
 t = 0
@@ -42,15 +44,26 @@ while map_unexplored:
         goal_pose = Planner.run_planner()
         for i in range(num_agents):
 
-            x0 = np.array([initial_pose[i + 1][0], initial_pose[i + 1][1], 0])
-            xf = np.array([goal_pose[i + 1][0], goal_pose[i + 1][1], 0])
+            x0 = np.array([initial_pose[i + 1][0]/10, initial_pose[i + 1][1]/10, 0])
+            xf = np.array([goal_pose[i + 1][0]/10, goal_pose[i + 1][1]/10, 0])
             config_list.append((MinSnap(points=np.row_stack((x0, xf)),
                                         v_avg=1.0, verbose=False), 0))
         sim = MultiAgentSimulation(thread_manager=Manager, world=world,
                                    num_agents=num_agents, t_final=10,
-                                   t_step=1 / 100, config_list=config_list)
+                                   t_step=1 / 100, config_list=config_list,map_resolution=10)
+        range_sensor = TwoDRangeSensor(world, sampling_rate=100, angular_fov=sensor_parameters['angular_fov'], angular_resolution=sensor_parameters['angular_resolution'], fixed_heading=sensor_parameters['fixed_heading'], noise_density=sensor_parameters['noise_density'])
+        # range_sensor.map_resolution = 0.1
+        range_sensor.Dmax = 200
+        sensor_data = []
+        map_representations = []
+        from src.abc import plot_2d_map
+        for i in range(num_agents):
+            x0 = {'x': np.array([initial_pose[i + 1][0]/10, initial_pose[i + 1][1]/10, 0])}
+            sensor_data.append(range_sensor.measurement(x0))
+            map_representations.append(sim.range_sensor_to_map_representation(x0, sensor_data[i]))
+            plot_2d_map(map_representations[i], initial_pose, goal_pose, 2)
 
         t = 1
         break
 
-results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=False, visualize=True, planner=True, planner_fcn=Planner.worker_fn)
+results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True, planner=True, planner_fcn=Planner.worker_fn)
