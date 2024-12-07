@@ -29,14 +29,14 @@ for i in range(num_agents):
 Manager = ThreadPoolManager
 
 map = np.loadtxt('./src/test_map')
-# num_agents = 1
+num_agents = 1
 start_pos = {1: (0, 0), 2: (10, 0), 3: (20, 0)}  # , 4: (9, 0), 5: (11,0)}
 time_step = 1
 
 bloat_val = 4  # BLOAT_VAL > RADIUS OF DRONE
 unknown_travel = True
 
-Planner = GlobalPlanner(map, 1, start_pos, time_step, bloat_val,
+Planner = GlobalPlanner(map, num_agents, start_pos, time_step, bloat_val,
                         unknown_travel)
 
 # sim = MultiAgentSimulation(world=world, num_agents=num_agents, t_final=10, t_step=1/100, config_list="Cool")
