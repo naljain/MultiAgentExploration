@@ -15,6 +15,8 @@ from scipy.linalg import expm
 from scipy.linalg import solve_continuous_are
 from pydrake.solvers import MathematicalProgram, Solve, OsqpSolver
 import pydrake.symbolic as sym
+from pydrake.symbolic import Expression
+
 
 from pydrake.all import MonomialBasis, OddDegreeMonomialBasis, Variables
 
@@ -138,11 +140,13 @@ class MPC_Controller(object):
 
     def add_dynamics_constraint(self, prog, x, u, N, T):
         state_for_rotorpy = {'x': x[0:3], 'v':x[3:6], 'q':x[6:10],}
-        input_for_rotorpy = {'cmd_motor_thrusts': u}
         multirotor = self.vehicle
-        dynamics = multirotor.statedot(state_for_rotorpy, input_for_rotorpy, T)
-        statedot = np.array([dynamics['vdot'], dynamics['wdot']])
         for i in range(N-1):
+            
+            controls = np.array([Expression(var) for var in u[i]])
+            input_for_rotorpy = {'cmd_motor_thrusts': controls}
+            dynamics = multirotor.statedot(state_for_rotorpy, input_for_rotorpy, T)
+            statedot = np.array([dynamics['vdot'], dynamics['wdot']])
             prog.AddLinearEqualityConstraint((x[i+1]) - statedot, np.zeros(6)) # 6 elements in state??
 
     def barrier_dist(self, p_i, p_j):
@@ -223,6 +227,7 @@ class MPC_Controller(object):
         u_mpc = result.GetSolution(u[0]) + self.u_d() # this is from hw, so need to see if this is correct
 
         return u_mpc
+    # def symbolic_dynamics(x, u, rotorpy_model):
 
 
 

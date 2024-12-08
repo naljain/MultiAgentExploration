@@ -20,9 +20,9 @@ goal_pose = Planner.run_planner()
 traj = np.array([(0, 0), (1, 1), (2, 2), (2, 3)])
 
 # Create a multirotor object
-vehicle = Multirotor(quad_params)
+vehicle = Multirotor(quad_params, control_abstraction='cmd_motor_thrusts')
 x0 = vehicle.initial_state
 # Create a MPC controller object
 controller = MPC_Controller(map, vehicle)
-state = np.array([x0['x'], x0['v'], x0['q']])
+state = np.concatenate([x0['x'], x0['v']])
 u = controller.compute_mpc_feedback(state,traj)
