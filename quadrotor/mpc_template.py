@@ -187,7 +187,7 @@ class MPC_Controller(object):
             )
         prog.AddQuadraticCost((x[N - 1] - x_ref[N - 1]).T @ self.Qf @ (x[N - 1] - x_ref[N - 1]))
 
-    def compute_mpc_feedback(self, x_current):
+    def compute_mpc_feedback(self, x_current, x_ref):
 
         # QP params
         N = 10  # prediction horizon TODO NEEDS TO BE TUNED
