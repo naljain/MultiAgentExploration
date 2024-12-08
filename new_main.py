@@ -11,6 +11,8 @@ from src.path_planning import PathFinding
 from simulation_threading.ThreadPool import ThreadPoolManager
 from rotorpy.sensors.range_sensors import TwoDRangeSensor
 
+from src.abc import plot_2d_map
+
 #sim params
 map = np.loadtxt('src/test_map2')
 # world = World.grid_forest(n_rows=2, n_cols=2, width=2, height=3, spacing=20)
@@ -56,11 +58,11 @@ while map_unexplored:
         range_sensor.Dmax = 10
         sensor_data = []
         map_representations = []
-        from src.abc import plot_2d_map
+
         for i in range(num_agents):
             x0 = {'x': np.array([initial_pose[i + 1][0]/10, initial_pose[i + 1][1]/10, 0])}
             sensor_data.append(range_sensor.measurement(x0))
-            map_representations.append(sim.range_sensor_to_map_representation(x0, sensor_data[i]))
+            map_representations.append(sim.range_sensor_to_map_representation(x0, sensor_data[i], range_sensor.Dmax))
             plot_2d_map(map_representations[i], initial_pose, goal_pose, 2)
 
         t = 1

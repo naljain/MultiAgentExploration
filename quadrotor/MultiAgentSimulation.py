@@ -259,24 +259,26 @@ class MultiAgentSimulation:
         ranges = range_sensor.measurement(state)
         plot_map(axes[0], data_world.world)
         self.plot_range(axes, self.world, pos_t, ranges, range_sensor)
-    def range_sensor_to_map_representation(self, position_data, sensor_data):
+    def range_sensor_to_map_representation(self, position_data, sensor_data, Dmax):
         map = copy.deepcopy(self.sensor_reading)
         x = int(position_data['x'][0])*10
         y = int(position_data['x'][1])*10
         x_origin, y_origin = 0, 0
         dx, dy = x_origin - x, y_origin - y
+        rot_theta = -np.pi
+        R = np.array([[np.cos(rot_theta), -np.sin(rot_theta)], [np.sin(rot_theta), np.cos(rot_theta)]])
+        rot_origins = np.matmul(R, np.array([dx, dy]).T)
         # orientation = Rotation.fromposition_data['q'] # If fixed heading, no need to adjust
         for theta, r in enumerate(sensor_data):
             if r > 9.9:
                 continue
-            rot_theta = -np.pi
-            R = np.array([[np.cos(rot_theta), -np.sin(rot_theta)], [np.sin(rot_theta), np.cos(rot_theta)]])
             x_new = ((r*np.sin((theta)*self.deg2rad))*10)
             y_new = ((r*np.cos((theta)*self.deg2rad))*10)
 
             rot_coords = np.matmul(R, np.array([x_new, y_new]).T)
-            rot_x = rot_coords[0].astype(int) + x
-            rot_y = rot_coords[1].astype(int) + y
+            rot_origins = np.matmul(R, np.array([dx, dy]).T)
+            rot_x = rot_coords[0].astype(int) + rot_origins[1].astype(int)
+            rot_y = rot_coords[1].astype(int) + rot_origins[0].astype(int)  
             if rot_x >= 0 and rot_x < map.shape[0] and rot_y >= 0 and rot_y < map.shape[1]:
                 map[rot_x, rot_y] = 1
         return map
