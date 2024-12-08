@@ -337,7 +337,7 @@ class MultiAgentSimulation:
         else:
             with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
                 config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
-                results = pool.map(pool.worker_fn, config_list)
+                results = pool.map(config_list)
 
             # Concatentate all the relevant states/inputs for animation.
         all_pos = []
@@ -399,6 +399,8 @@ if __name__ == "__main__":
     sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005}
     # sensor_parameters = None
 
-    sim = MultiAgentSimulation(thread_manager=ThreadPoolManager, world=world, num_agents=3, t_final=10, t_step=1/100, config_list="Cool")
+    # sim = MultiAgentSimulation(thread_manager=ThreadPoolManager, world=world, num_agents=3, t_final=10, t_step=1/100, config_list="Cool")
+    sim = MultiAgentSimulation(thread_manager=ThreadPoolManager, world=world, num_agents=3, t_final=10, t_step=1/100, config_list="Hover")
+
     results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True)
-    print(results)
+    # print(results)
