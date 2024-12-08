@@ -39,6 +39,8 @@ class MPC_Controller(object):
             vehicle_params, dict with keys specified in a python file under /rotorpy/vehicles/
 
         """
+        self.map = map
+        self.d_safe = 10
 
     def update(self, t, state, flat_output):
         """
@@ -137,13 +139,39 @@ class MPC_Controller(object):
         # step_dot/x_dot from rotorpy to simulate dynamics
         pass
 
-    def barrier_function(self, p_i, p_j):
+    def barrier_dist(self, p_i, p_j):
+        x_i, y_i = p_i
+        x_j, y_j = p_j
+        d = ((x_j - x_i) ** 2 + (y_j - y_i)**2) ** 0.5
+        return d
 
-        pass
+    def add_barrier_obstacle_constraint(self, prog, x, N):
+        map = self.map
+        all_obstacles_x, all_obstacles_y = np.where(map == 1)
+        len_all_obstacles = len(all_obstacles_x)
+        d_safe = self.d_safe
 
+        for k in range(N):
+            xk, yk = x[k, 0:2]
+            epsilon = 0
+            min_dist = math.inf
+            closest_obs = []
 
-    def add_barrier_obstacle_constraint(self):
-        pass
+            # to make it run faster only look at moving window of map
+            for i in range(len_all_obstacles):
+                x, y = all_obstacles_x[i], all_obstacles_y[i]
+
+                d = self.barrier_dist((xk,yk), (x,y))
+                if d < min_dist:
+                    min_dist = d
+                    closest_obs = [(x, y)]
+                    continue
+                if d == min_dist:
+                    closest_obs.append((x,y))
+
+            for obs in closest_obs:
+                barrier_cost = -np.log((min_dist - d_safe + epsilon))**2
+                prog.AddCost(barrier_cost)
 
     def add_cost(self):
         pass
