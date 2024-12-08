@@ -92,9 +92,23 @@ class GlobalPlanner():
                                     if self.explored_map[nx][ny] != 1:
                                         self.explored_map[nx][ny] = 2
 
-    def upadate_maps(self):
-        # takes the local map of the drone that reaches frontier goal and makes global map == local map
-        pass
+    def merge_maps(self, agent_map_dict):
+        """
+        Merge multiple agentss maps into one using NumPy vectorized operations.
+
+        TODO handle case where other agents are identified as obstacles
+
+        Input : dictionary of maps from agents
+        Output: merged map of all agents
+        """
+        # Stack all maps into a 3D array (layers: maps, rows, cols)
+        agent_maps = list(agent_map_dict.values())
+        stacked_maps = np.stack(agent_maps)
+
+        # Apply np.maximum along the first axis to merge maps
+        merged_map = np.max(stacked_maps, axis=0)
+
+        return merged_map
 
     def send_ref_traj(self):
         # calls on path planning to get waypoints

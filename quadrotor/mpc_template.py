@@ -91,18 +91,57 @@ class MPC_Controller(object):
                          'cmd_v':cmd_v}
         return control_input
 
-    def add_intial_state_constraint(self, prog, x, x_current):
+
+
+    def downsample_traj(self, waypoints, N):
+
+        v_avg = 1
+        # TODO this is def wrong bc we allow diagnol movements so need to fix this but for simplicity right now
+        length_traj = len(waypoints) # in cm
+        T_traj = length_traj/v_avg
+
         pass
 
+
+
+
+
+    def add_intial_state_constraint(self, prog, x, x_current):
+        """
+        this x_current should come from position data of the agent, not
+        from waypoints as the prev agent could have ended not on the waypoint
+        for the prev traj segment
+        """
+        n_x = x_current.shape[0]
+        for i in range(n_x):
+            prog.AddBoundingBoxConstraint(x_current[i], x_current[i], x[0, i])
+
+
     def add_final_state_constraints(self):
+        """
+        i dont think we need to put the v_N =0 and a_N = 0,
+        but if we do it would come here
+        :return:
+        """
         pass
 
 
     def add_input_saturation_constraint(self, prog, x, u, N):
-        pass
+        n_u = u.shape[1]
+        # TODO : get u min and u max from rotorpy
+        u_min = 0
+        u_max = 1
+        #in homework they have u_d here, not sure if we need that?
+        for j in range(n_u):
+            for i in range(N-1):
+                prog.AddBoundingBoxConstraint(u_min, u_max, u[i, j])
 
     def add_dynamics_constraint(self):
         pass
+
+    def barrier_function(self, p_i, p_j):
+        pass
+
 
     def add_barrier_agent_contraint(self):
         pass
@@ -113,20 +152,25 @@ class MPC_Controller(object):
     def add_cost(self):
         pass
 
-    def compute_mpc_feedback(self):
+    def compute_mpc_feedback(self, x_current):
 
         # QP params
-        N = 10  # number of waypoints -- TODO comes from planner
+        N = 10  # prediction horizon TODO NEEDS TO BE TUNED
         T = 0.1 # time step
 
-
         # initialise mathematical program
-
         prog = MathematicalProgram()
 
-        # intialise decision variables
+        # initialise decision variables
+        x = np.zeros((N, 6), dtype= "object")
+        for i in range(N):
+            x[i] = prog.NewContinuousVariables(6, 'x_' + str(i))
+        u = np.zeros((N-1, 2), dtype = "object")
+        for i in range(N-1):
+            u[i] = prog.NewContinuousVariables(2, 'u_' + str(i))
 
         # add constraints
+        self.add_intial_state_constraint(prog, x, x_current)
 
         # add cost
 

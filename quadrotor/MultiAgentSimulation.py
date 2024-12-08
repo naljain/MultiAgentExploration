@@ -279,6 +279,7 @@ class MultiAgentSimulation:
         # orientation = Rotation.fromposition_data['q'] # If fixed heading, no need to adjust
         for theta, r in enumerate(sensor_data):
             theta = theta*angular_resolution
+            # print(Dmax*0.98)
             if r > Dmax*0.98:
                 x_frontier = ((r*np.sin((theta)*self.deg2rad))*self.map_resolution)
                 y_frontier = ((r*np.cos((theta)*self.deg2rad))*self.map_resolution)
@@ -293,7 +294,7 @@ class MultiAgentSimulation:
             y_new = ((r*np.cos((theta)*self.deg2rad))*self.map_resolution)
             rot_coords = np.matmul(R, np.array([x_new, y_new]).T)
             rot_x = rot_coords[0].astype(int) + rot_origins[1].astype(int)
-            rot_y = rot_coords[1].astype(int) + rot_origins[0].astype(int)  
+            rot_y = rot_coords[1].astype(int) + rot_origins[0].astype(int)
             if rot_x >= 0 and rot_x < map.shape[0] and rot_y >= 0 and rot_y < map.shape[1] and r < Dmax*0.98:
                 obstacles.add((rot_x, rot_y))
         obstacle_propagate = 1
