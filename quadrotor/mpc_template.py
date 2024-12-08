@@ -96,12 +96,10 @@ class MPC_Controller(object):
 
 
     def downsample_traj(self, waypoints, N):
-
         v_avg = 1
         # TODO this is def wrong bc we allow diagnol movements so need to fix this but for simplicity right now
         length_traj = len(waypoints) # in cm
         T_traj = length_traj/v_avg
-
         pass
 
 
@@ -205,13 +203,23 @@ class MPC_Controller(object):
 
         # add constraints
         self.add_intial_state_constraint(prog, x, x_current)
+        self.add_input_saturation_constraint(prog, x, u, N)
+        self.add_dynamics_constraint(prog, x, u, N, T)
 
         # add cost
+        self.add_barrier_obstacle_constraint(prog, x, N)
+        # TODO input x_ref
+        self.add_cost(prog, x, x_ref, u, N)
 
         # solve the QP
+        solver = OsqpSolver() # can be SNOPT if this doesnt work
+        result = solver.Solve(prog)
 
         # get u_mpc
+        # u_mpc = result.GetSolution(u[0])
+        u_mpc = result.GetSolution(u[0]) + self.u_d() # this is from hw, so need to see if this is correct
 
+        return u_mpc
 
 
 
