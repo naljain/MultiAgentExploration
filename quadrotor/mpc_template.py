@@ -103,9 +103,6 @@ class MPC_Controller(object):
         pass
 
 
-
-
-
     def add_intial_state_constraint(self, prog, x, x_current):
         """
         this x_current should come from position data of the agent, not
