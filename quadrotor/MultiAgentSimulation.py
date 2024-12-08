@@ -43,6 +43,7 @@ class MultiAgentSimulation:
         self.config_list = config_list
         self.config_defaults = config_defaults
         self.deg2rad = np.pi/180
+        self.map_resolution = map_resolution
 
         # Rotorpy World properties
         bounds = self.world.world['bounds']['extents']
@@ -58,7 +59,7 @@ class MultiAgentSimulation:
         size_y = (y_max - y_min).astype(int)*map_resolution
         self.world_positions = np.zeros((size_x, size_y))
         # Prepared for sensor updating later
-        self.sensor_reading = np.zeros((size_x, size_y))
+        self.sensor_reading = np.ones((size_x, size_y))*-1
         # get obstacle positions in world
         for obstacle in obstacles:
             x_min, x_max = (obstacle['extents'][0] * map_resolution).astype(int), (obstacle['extents'][1] * map_resolution).astype(int)
@@ -259,28 +260,67 @@ class MultiAgentSimulation:
         ranges = range_sensor.measurement(state)
         plot_map(axes[0], data_world.world)
         self.plot_range(axes, self.world, pos_t, ranges, range_sensor)
-    def range_sensor_to_map_representation(self, position_data, sensor_data, Dmax):
+    def range_sensor_to_map_representation(self, position_data, sensor_data, range_sensor, global_map=False):
         map = copy.deepcopy(self.sensor_reading)
-        x = int(position_data['x'][0])*10
-        y = int(position_data['x'][1])*10
-        x_origin, y_origin = 0, 0
-        dx, dy = x_origin - x, y_origin - y
+        obstacles = set()
+        Dmax = range_sensor.Dmax
+        angular_resolution = range_sensor.angular_resolution
+        x = int(position_data['x'][0])*self.map_resolution
+        y = int(position_data['x'][1])*self.map_resolution
+        if global_map:
+            x_origin, y_origin = 0, 0
+            dx, dy = x_origin - x, y_origin - y
+        else:
+            dx, dy = 0, 0
         rot_theta = -np.pi
         R = np.array([[np.cos(rot_theta), -np.sin(rot_theta)], [np.sin(rot_theta), np.cos(rot_theta)]])
         rot_origins = np.matmul(R, np.array([dx, dy]).T)
         # orientation = Rotation.fromposition_data['q'] # If fixed heading, no need to adjust
         for theta, r in enumerate(sensor_data):
-            if r > 9.9:
-                continue
-            x_new = ((r*np.sin((theta)*self.deg2rad))*10)
-            y_new = ((r*np.cos((theta)*self.deg2rad))*10)
+            theta = theta*angular_resolution
+            if r > Dmax*0.98:
+                x_frontier = ((r*np.sin((theta)*self.deg2rad))*self.map_resolution)
+                y_frontier = ((r*np.cos((theta)*self.deg2rad))*self.map_resolution)
+                rot_coords = np.matmul(R, np.array([x_frontier, y_frontier]).T)
+                rot_x = rot_coords[0].astype(int) + rot_origins[1].astype(int)
+                rot_y = rot_coords[1].astype(int) + rot_origins[0].astype(int)
+                if rot_x >= 0 and rot_x < map.shape[0] and rot_y >= 0 and rot_y < map.shape[1]:
+                    map[int(rot_origins[1]):rot_x, int(rot_origins[0]):rot_y] = 0
+                    # map[rot_x, rot_y] = 0
 
+            x_new = ((r*np.sin((theta)*self.deg2rad))*self.map_resolution)
+            y_new = ((r*np.cos((theta)*self.deg2rad))*self.map_resolution)
             rot_coords = np.matmul(R, np.array([x_new, y_new]).T)
-            rot_origins = np.matmul(R, np.array([dx, dy]).T)
             rot_x = rot_coords[0].astype(int) + rot_origins[1].astype(int)
             rot_y = rot_coords[1].astype(int) + rot_origins[0].astype(int)  
-            if rot_x >= 0 and rot_x < map.shape[0] and rot_y >= 0 and rot_y < map.shape[1]:
-                map[rot_x, rot_y] = 1
+            if rot_x >= 0 and rot_x < map.shape[0] and rot_y >= 0 and rot_y < map.shape[1] and r < Dmax*0.98:
+                obstacles.add((rot_x, rot_y))
+        obstacle_propagate = 1
+        place_obstacle = 1
+        obstacles_to_go = []
+        obstacles_to_add = []
+        while obstacle_propagate:
+            if len(obstacles)==0:
+                obstacle_propagate = 0
+                break
+            for obstacle in obstacles:
+                if place_obstacle:
+                    map[obstacle[0], obstacle[1]] = 1
+                else:
+                    map[obstacle[0], obstacle[1]] =-1
+                new_obstacle = (obstacle[0] + 1, obstacle[1] + 1)
+                obstacles_to_go.append(obstacle)
+                if map[new_obstacle[0], new_obstacle[1]] == -1:
+                    continue
+                else:
+                    obstacles_to_add.append(new_obstacle)
+            place_obstacle = 0
+            for obstacle in obstacles_to_go:
+                obstacles.remove(obstacle)
+            for obstacle in obstacles_to_add:
+                obstacles.add(obstacle)
+            obstacles_to_go = []
+            obstacles_to_add = []
         return map
 
     def run_sim(self, sensor_parameters = {'angular_fov': 360, 'angular_resolution': 1, 'fixed_heading': True, 'noise_density': 0.005},
