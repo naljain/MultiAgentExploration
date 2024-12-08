@@ -32,13 +32,14 @@ class MPC_Controller(object):
         if cmd_ctbr: the output dict should contain the keys 'cmd_thrust' and 'cmd_w'
         if cmd_ctbm: the output dict should contain the keys 'cmd_thrust' and 'cmd_moment'
     """
-    def __init__(self, map,  vehicle_params,):
+    def __init__(self, map,  vehicle):
         """
         Use this constructor to save vehicle parameters, set controller gains, etc.
         Parameters:
             vehicle_params, dict with keys specified in a python file under /rotorpy/vehicles/
 
         """
+        self.vehicle = vehicle
         self.map = map
         self.d_safe = 10
 
@@ -142,7 +143,7 @@ class MPC_Controller(object):
         dynamics = multirotor.statedot(state_for_rotorpy, input_for_rotorpy, T)
         statedot = np.array([dynamics['vdot'], dynamics['wdot']])
         for i in range(N-1):
-            prog.AddLinearEqualityConstraint((x[i+1]) - dynamics, np.zeros(6)) # 6 elements in state??
+            prog.AddLinearEqualityConstraint((x[i+1]) - statedot, np.zeros(6)) # 6 elements in state??
 
     def barrier_dist(self, p_i, p_j):
         x_i, y_i = p_i
