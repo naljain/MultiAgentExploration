@@ -178,8 +178,13 @@ class MPC_Controller(object):
                 barrier_cost = -np.log((min_dist - d_safe + epsilon))**2
                 prog.AddCost(barrier_cost)
 
-    def add_cost(self):
-        pass
+    def add_cost(self, prog, x, x_ref, u, N):
+        u_ref = 0
+        for k in range(N-1):
+            prog.AddQuadraticCost(
+                (x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]) + (u[k]).T @ self.R @ (u[k])
+            )
+        prog.AddQuadraticCost((x[N - 1] - x_ref[N - 1]).T @ self.Qf @ (x[N - 1] - x_ref[N - 1]))
 
     def compute_mpc_feedback(self, x_current):
 
