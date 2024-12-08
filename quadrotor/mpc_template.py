@@ -32,7 +32,7 @@ class MPC_Controller(object):
         if cmd_ctbr: the output dict should contain the keys 'cmd_thrust' and 'cmd_w'
         if cmd_ctbm: the output dict should contain the keys 'cmd_thrust' and 'cmd_moment'
     """
-    def __init__(self, vehicle_params):
+    def __init__(self, map,  vehicle_params,):
         """
         Use this constructor to save vehicle parameters, set controller gains, etc.
         Parameters:
@@ -42,7 +42,7 @@ class MPC_Controller(object):
         self.map = map
         self.d_safe = 10
 
-    def update(self, t, state, flat_output):
+    def update(self, state):
         """
         This function receives the current time, true state, and desired flat
         outputs. It returns the command inputs.
@@ -76,8 +76,10 @@ class MPC_Controller(object):
         """
 
         # Only some of these are necessary depending on your desired control abstraction.
+        state = [state['x'], state['v']]
+        u_from_mpc = self.compute_mpc_feedback(state)
         cmd_motor_speeds = np.zeros((4,))
-        cmd_motor_thrusts = np.zeros((4,))
+        cmd_motor_thrusts = u_from_mpc # needs to have dimensions of 4.
         cmd_thrust = 0
         cmd_moment = np.zeros((3,))
         cmd_q = np.array([0,0,0,1])
