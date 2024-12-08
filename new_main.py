@@ -49,13 +49,13 @@ sensor_parameters = {'angular_fov': 360, 'angular_resolution': 0.01, 'fixed_head
 
 t = 0
 map_unexplored = True
-num_agents = 3
+num_agents = 2
 agents = {}
 Manager = ThreadPoolManager
 
 
 # plannar params
-agents = {1: 123, 2 : 222, 3: 4444}  # , 2: 343, 3: 4444, 4: 444245, 5:13434} # dict = {agent num : agent id}
+agents = {1: 123, 2 : 222}  # , 2: 343, 3: 4444, 4: 444245, 5:13434} # dict = {agent num : agent id}
 time_step = 1
 
 bloat_val = 4  # BLOAT_VAL > RADIUS OF DRONE
@@ -92,10 +92,10 @@ while map_unexplored:
             sensor_data.append(range_sensor.measurement(x0))
             map_representations.append(sim.range_sensor_to_map_representation(x0, sensor_data[i], range_sensor))
             # plot_2d_map(map_representations[i], initial_pose, goal_pose, 2)
-            plot_array_as_grid(map_representations[i])
+            # plot_array_as_grid(map_representations[i])
 
         t = 1
         break
 
-results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=True, visualize=True, planner=True, planner_fcn=Planner.worker_fn)
+results = sim.run_sim(sensor_parameters=sensor_parameters, range_sensor_plot=False, visualize=True, planner=True, planner_fcn=Planner.worker_fn)
 

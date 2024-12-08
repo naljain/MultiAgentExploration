@@ -55,8 +55,8 @@ class MultiAgentSimulation:
         x_min, x_max = bounds[0], bounds[1]
         y_min, y_max = bounds[2], bounds[3]
         # z_min, z_max = bounds[4], bounds[5]
-        size_x = (x_max - x_min).astype(int)*map_resolution
-        size_y = (y_max - y_min).astype(int)*map_resolution
+        size_x = int(x_max - x_min)*map_resolution
+        size_y = int(y_max - y_min)*map_resolution
         self.world_positions = np.zeros((size_x, size_y))
         # Prepared for sensor updating later
         self.sensor_reading = np.ones((size_x, size_y))*-1
@@ -169,11 +169,12 @@ class MultiAgentSimulation:
                     sensor_data, updated_world = self.sense_from_world(orig_world, shared_data, threading.get_ident(), sensor_parameters)
                     shared_data[threading.get_ident()]['sensor_data'].append(sensor_data)
                     shared_data[threading.get_ident()]['world'].append(copy.deepcopy(updated_world))
-                    if sensor_data is not None:
-                        shared_data[threading.get_ident()]['sensor_map_represenation'].append(self.range_sensor_to_map_representation(states[-1] , sensor_data))
+                    # if sensor_data is not None:
+                    #     shared_data[threading.get_ident()]['sensor_map_represenation'].append(self.range_sensor_to_map_representation(states[-1] , sensor_data, TwoDRangeSensor(orig_world, sampling_rate=100, angular_fov=sensor_parameters['angular_fov'], angular_resolution=sensor_parameters['angular_resolution'], fixed_heading=sensor_parameters['fixed_heading'], noise_density=sensor_parameters['noise_density'])))
                     # Remove the blocks that were added to the world
                     if orig_world is not None:
                         orig_world.world['blocks'] = orig_world.world['blocks'][:prev_obstacles]
+            # print(f"Thread {threading.get_ident()} at time {time[-1]}")
 
             if time[-1] >= t_final:
                 break
@@ -330,7 +331,7 @@ class MultiAgentSimulation:
             assert planner_fcn is not None, "Planner function must be provided if planner is True."
             with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn, planner=planner, planner_fnc=planner_fcn) as pool:
                 config_list = self.load_config(self.config_list, shared_data=data, sensor_parameters=sensor_parameters)
-                config_list.append('planner')
+                config_list.append(('planner',))
                 results = pool.map(config_list)
         else:
             with self.Manager(num_threads=self.num_agents,worker_fn=self.worker_fn) as pool:
