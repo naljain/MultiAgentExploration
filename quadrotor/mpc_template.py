@@ -140,9 +140,9 @@ class MPC_Controller(object):
         input_for_rotorpy = {'cmd_motor_thrusts': u}
         multirotor = self.vehicle
         dynamics = multirotor.statedot(state_for_rotorpy, input_for_rotorpy, T)
+        statedot = np.array([dynamics['vdot'], dynamics['wdot']])
         for i in range(N-1):
-            prog.AddQuadraticCost((x[i]).T @ self.Q @ (x[i]) + (u[i]).T @ self.R @ (u[i]))
-        prog.AddQuadraticCost((x[N-1]).T @ self.Qf @ (x[N-1]))
+            prog.AddLinearEqualityConstraint((x[i+1]) - dynamics, np.zeros(6)) # 6 elements in state??
 
     def barrier_dist(self, p_i, p_j):
         x_i, y_i = p_i
