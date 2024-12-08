@@ -134,14 +134,13 @@ class MPC_Controller(object):
                 prog.AddBoundingBoxConstraint(u_min, u_max, u[i, j])
 
     def add_dynamics_constraint(self):
+        # step_dot/x_dot from rotorpy to simulate dynamics
         pass
 
     def barrier_function(self, p_i, p_j):
+
         pass
 
-
-    def add_barrier_agent_contraint(self):
-        pass
 
     def add_barrier_obstacle_constraint(self):
         pass
@@ -162,9 +161,9 @@ class MPC_Controller(object):
         x = np.zeros((N, 6), dtype= "object")
         for i in range(N):
             x[i] = prog.NewContinuousVariables(6, 'x_' + str(i))
-        u = np.zeros((N-1, 2), dtype = "object")
+        u = np.zeros((N-1, 4), dtype = "object")
         for i in range(N-1):
-            u[i] = prog.NewContinuousVariables(2, 'u_' + str(i))
+            u[i] = prog.NewContinuousVariables(4, 'u_' + str(i))
 
         # add constraints
         self.add_intial_state_constraint(prog, x, x_current)
