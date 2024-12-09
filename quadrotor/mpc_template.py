@@ -17,10 +17,13 @@ from scipy.linalg import expm
 from scipy.linalg import solve_continuous_are
 from pydrake.solvers import MathematicalProgram, Solve, OsqpSolver
 import pydrake.symbolic as sym
-from pydrake.symbolic import Expression
+from pydrake.symbolic import Expression, if_then_else, min, max
+from pydrake.math import sqrt, abs
 
 
 from pydrake.all import MonomialBasis, OddDegreeMonomialBasis, Variables
+from quadrotor.dynamics import Quad_dynamics
+
 
 class MPC_Controller(object):
     """
@@ -154,12 +157,31 @@ class MPC_Controller(object):
         Returns:
             state_dot: Symbolic state derivative (6 variables).
         """
+
+        def symbolic_sign(x_sym: Expression) -> Expression:
+            return if_then_else(x_sym > 0, 1, if_then_else(x_sym < 0, -1, 0))
+        def symbolic_sqrt(x_sym: Expression) -> Expression:
+            return sqrt(x_sym)
+        def symbolic_clip(x_sym: Expression, a_min: Expression, a_max: Expression) -> Expression:
+            return min(max(x_sym, a_min), a_max)
+        
+        vehicle = self.vehicle
+        k_eta = vehicle.k_eta
+        min_speed = vehicle.rotor_speed_min
+        max_speed = vehicle.rotor_speed_max
+
+        Dynamics = Quad_dynamics(vehicle)
+
         # Convert state and control inputs to arrays of symbolic expressions
         state = np.array([Expression(var) for var in x_k])
         controls = np.array([Expression(var) for var in u_k])
 
-        # Use RotorPy functions to calculate forces, torques, and accelerations
-        st_dot = rotorpy_model.statedot(controls, state, 0.1)
+        # Apply symbolic expressions to control inputs for dynamics modeling based on RotorPy
+        controls = controls / k_eta
+        controls = (symbolic_sign(var) * symbolic_sqrt(abs(var)) for var in controls)
+        controls = (symbolic_clip(var, min_speed, max_speed) for var in controls)
+
+        s_dot = Dynamics._s_dot_fn(0, state, controls)
 
         # Construct state derivatives (6 states: position, velocity, orientation rates)
         # Assuming x = [position_xyz, velocity_xyz] for simplicity in this example
@@ -256,9 +278,9 @@ class MPC_Controller(object):
         prog = MathematicalProgram()
 
         # initialise decision variables
-        x = np.zeros((N, 6), dtype= "object")
+        x = np.zeros((N, 16), dtype= "object")
         for i in range(N):
-            x[i] = prog.NewContinuousVariables(6, 'x_' + str(i))
+            x[i] = prog.NewContinuousVariables(16, 'x_' + str(i))
         u = np.zeros((N-1, 4), dtype = "object")
         for i in range(N-1):
             u[i] = prog.NewContinuousVariables(4, 'u_' + str(i))
