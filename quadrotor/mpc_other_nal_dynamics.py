@@ -8,6 +8,7 @@ from numpy.linalg import inv
 from numpy.linalg import cholesky
 from math import sin, cos
 from rotorpy.vehicles.multirotor import Multirotor
+from pydrake.solvers import SnoptSolver
 
 import math
 from scipy.interpolate import interp1d
@@ -46,7 +47,7 @@ class MPC_Controller(object):
         self.vehicle = vehicle
         self.map = map
         self.d_safe = 10
-        self.Q = np.diag([10, 10, 1, 1, 1, 1,1,1,1,1,1,1])
+        self.Q = np.diag([10, 10, 0, 0, 0, 0,0,0,0,0,0,0])
         # self.Q[0,0] = 1
         # self.Q[]
         self.R = np.eye(12)
@@ -120,7 +121,8 @@ class MPC_Controller(object):
         from waypoints as the prev agent could have ended not on the waypoint
         for the prev traj segment
         """
-        n_x = x_current.shape[0]
+        # n_x = x_current.shape[0]
+        n_x = 2
         for i in range(n_x):
             prog.AddBoundingBoxConstraint(x_current[i], x_current[i], x[0, i])
 
@@ -214,12 +216,18 @@ class MPC_Controller(object):
     def add_dynamic_constraints(self, prog, x, u, rotorpy_model, T, N, mass, inertia):
         for k in range(N-1):
             xk = x[k]
+            print('len of xk in dyan co', len(xk))
             uk = u[k]
             x_dot = self.symbolic_quadrotor_dynamics(xk, uk, mass, inertia)
-            xk_1 = xk + x_dot*T
-            for i in range(N-1):
-                prog.AddConstraint((x[i, k + 1]) - xk_1[i] == 0)
-            # prog.AddLinearEqualityConstraint((x[k + 1]), xk_1)
+            # xk_1 = xk + x_dot*T
+            xk_1 = [xk[i] + x_dot[i] * T for i in range(12)]
+            print('len of xk+1 in dyan co', len(xk_1))
+            # prog.AddConstraint(xk_1 - xk == 0)
+            for i in range(12):
+                # prog.AddConstraint((xk_1[i] - xk[i]), np.array([0]))
+                prog.AddConstraint((xk_1[i] - xk[i]) == 0)
+                # prog.AddBoundingBoxConstraint(0, 0, xk_1[i] - xk[i], lb=np.array([0]), ub=np.array([0]))
+        # prog.AddLinearEqualityConstraint((x[k + 1]), xk_1)
 
 
 
@@ -273,7 +281,7 @@ class MPC_Controller(object):
     def add_cost(self, prog, x, x_ref, u, N):
         u_ref = 0
         for k in range(N-1):
-            print(x[k].shape)
+            print((x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]))
             # prog.AddQuadraticCost(
             #     (x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]) + (u[k]).T @ self.R @ (u[k])
             # )
@@ -285,7 +293,7 @@ class MPC_Controller(object):
 
         # QP params
         N = 4  # prediction horizon TODO NEEDS TO BE TUNED
-        T = 0.1 # time step
+        T = 1 # time step
 
         # initialise mathematical program
         prog = MathematicalProgram()
@@ -327,12 +335,14 @@ class MPC_Controller(object):
         self.add_cost(prog, x, x_ref, u, N)
 
         # solve the QP
-        solver = OsqpSolver() # can be SNOPT if this doesnt work
+        solver = SnoptSolver() # can be SNOPT if this doesnt work
         result = solver.Solve(prog)
-        print(result)
-        # get u_mpc
+        if result.is_success():
+            print("Solution found!")
+        else:
+            print("Solver failed.")        # get u_mpc
         # u_mpc = result.GetSolution(u[0])
-        u_mpc = result.GetSolution(u) # this is from hw, so need to see if this is correct
+        u_mpc = result.GetSolution(u[0]) # this is from hw, so need to see if this is correct
         print(u_mpc)
         return u_mpc
     # def symbolic_dynamics(x, u, rotorpy_model):
