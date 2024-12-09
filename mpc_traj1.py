@@ -1,6 +1,6 @@
 from rotorpy.vehicles.crazyflie_params import quad_params
 from rotorpy.vehicles.multirotor import Multirotor
-from quadrotor.mpc_template import MPC_Controller
+from quadrotor.mpc_other_nal_dynamics import MPC_Controller
 from src.global_planner import GlobalPlanner
 import numpy as np
 
@@ -16,8 +16,10 @@ Planner = GlobalPlanner(map, agents, time_step, bloat_val, senor_range,
                             unknown_travel)
 initial_pose = Planner.start_pos
 goal_pose = Planner.run_planner()
-
-traj = np.array([(0, 0), (1, 1), (2, 2), (2, 3)])
+traj = np.array([(0, 0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                 (1, 1,0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                 (2, 2,0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                 (2, 3,0, 0, 0, 0, 0, 0, 0, 0, 0, 0)])
 
 # Create a multirotor object
 vehicle = Multirotor(quad_params, control_abstraction='cmd_motor_thrusts')
@@ -26,3 +28,4 @@ x0 = vehicle.initial_state
 controller = MPC_Controller(map, vehicle)
 state = np.concatenate([x0['x'], x0['v']])
 u = controller.compute_mpc_feedback(state,traj)
+print('U is' , u)

@@ -11,7 +11,7 @@ class Quad_dynamics:
         # Unpack state
         x = s[0:3]
         v = s[3:6]
-        q = s[6:10]
+        q = np.array
         w = s[10:13]
         rotor_speeds = s[13:]
 
