@@ -47,10 +47,12 @@ class MPC_Controller(object):
         self.vehicle = vehicle
         self.map = map
         self.d_safe = 10
-        self.Q = np.diag([10, 10, 0, 0, 0, 0,0,0,0,0,0,0])
+        self.Q = np.diag([2, 2, 1, 0, 0, 0,0,0,0,0,0,0])
         # self.Q[0,0] = 1
         # self.Q[]
-        self.R = np.eye(12)
+        self.R = np.eye(4)
+        self.thrust_d = np.array([0.2943, 0, 0, 0])
+
 
     def update(self, state):
         """
@@ -122,9 +124,12 @@ class MPC_Controller(object):
         for the prev traj segment
         """
         # n_x = x_current.shape[0]
-        n_x = 2
-        for i in range(n_x):
-            prog.AddBoundingBoxConstraint(x_current[i], x_current[i], x[0, i])
+        # print(x_current)
+        state = np.concatenate([x_current['x'], x_current['v']])
+        n_x = state.shape[0]
+        print(n_x)
+        for i in range(3):
+            prog.AddBoundingBoxConstraint(state[i], state[i], x[0, i])
 
 
     def add_final_state_constraints(self):
@@ -139,8 +144,8 @@ class MPC_Controller(object):
     def add_input_saturation_constraint(self, prog, x, u, N):
         n_u = u.shape[1]
         # TODO : get u min and u max from rotorpy
-        u_min = 0
-        u_max = 1
+        u_min = -10
+        u_max = 10
         #in homework they have u_d here, not sure if we need that?
         for j in range(n_u):
             for i in range(N-1):
@@ -216,12 +221,12 @@ class MPC_Controller(object):
     def add_dynamic_constraints(self, prog, x, u, rotorpy_model, T, N, mass, inertia):
         for k in range(N-1):
             xk = x[k]
-            print('len of xk in dyan co', len(xk))
+            # print('len of xk in dyan co', len(xk))
             uk = u[k]
             x_dot = self.symbolic_quadrotor_dynamics(xk, uk, mass, inertia)
             # xk_1 = xk + x_dot*T
             xk_1 = [xk[i] + x_dot[i] * T for i in range(12)]
-            print('len of xk+1 in dyan co', len(xk_1))
+            # print('len of xk+1 in dyan co', len(xk_1))
             # prog.AddConstraint(xk_1 - xk == 0)
             for i in range(12):
                 # prog.AddConstraint((xk_1[i] - xk[i]), np.array([0]))
@@ -281,11 +286,11 @@ class MPC_Controller(object):
     def add_cost(self, prog, x, x_ref, u, N):
         u_ref = 0
         for k in range(N-1):
-            print((x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]))
-            # prog.AddQuadraticCost(
-            #     (x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]) + (u[k]).T @ self.R @ (u[k])
-            # )
-            prog.AddQuadraticCost((x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]))
+            # print((x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]))
+            prog.AddQuadraticCost(
+                (x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]) + (u[k] - self.thrust_d).T @ self.R @ (u[k]- self.thrust_d)
+            )
+            # prog.AddQuadraticCost((x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]))
 
         prog.AddQuadraticCost((x[N - 1] - x_ref[N - 1]).T @ self.Q @ (x[N - 1] - x_ref[N - 1]))
 
@@ -293,7 +298,7 @@ class MPC_Controller(object):
 
         # QP params
         N = 4  # prediction horizon TODO NEEDS TO BE TUNED
-        T = 1 # time step
+        T = 0.1 # time step
 
         # initialise mathematical program
         prog = MathematicalProgram()
@@ -308,7 +313,7 @@ class MPC_Controller(object):
 
         # add constraints
         self.add_intial_state_constraint(prog, x, x_current)
-        self.add_input_saturation_constraint(prog, x, u, N)
+        # self.add_input_saturation_constraint(prog, x, u, N)
 
         # self.add_dynamics_constraint(prog, x, u, N, T)
 
