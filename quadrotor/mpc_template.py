@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from numpy.linalg import inv
 from numpy.linalg import cholesky
 from math import sin, cos
+from rotorpy.vehicles.multirotor import Multirotor
+
 import math
 from scipy.interpolate import interp1d
 from scipy.integrate import ode
@@ -138,16 +140,69 @@ class MPC_Controller(object):
             for i in range(N-1):
                 prog.AddBoundingBoxConstraint(u_min, u_max, u[i, j])
 
-    def add_dynamics_constraint(self, prog, x, u, N, T):
-        state_for_rotorpy = {'x': x[0:3], 'v':x[3:6], 'q':x[6:10],}
-        multirotor = self.vehicle
-        for i in range(N-1):
-            
-            controls = np.array([Expression(var) for var in u[i]])
-            input_for_rotorpy = {'cmd_motor_thrusts': controls}
-            dynamics = multirotor.statedot(state_for_rotorpy, input_for_rotorpy, T)
-            statedot = np.array([dynamics['vdot'], dynamics['wdot']])
-            prog.AddLinearEqualityConstraint((x[i+1]) - statedot, np.zeros(6)) # 6 elements in state??
+
+
+    def symbolic_dynamics(self, x_k, u_k, rotorpy_model):
+        """
+        Compute symbolic dynamics using RotorPy.
+
+        Parameters:
+            x_k: Symbolic state at time step k (6 variables).
+            u_k: Symbolic control input at time step k (4 variables).
+            rotorpy_model: Instance of the RotorPy Multirotor class.
+
+        Returns:
+            state_dot: Symbolic state derivative (6 variables).
+        """
+        # Convert state and control inputs to arrays of symbolic expressions
+        state = np.array([Expression(var) for var in x_k])
+        controls = np.array([Expression(var) for var in u_k])
+
+        # Use RotorPy functions to calculate forces, torques, and accelerations
+        st_dot = rotorpy_model.statedot(controls, state, 0.1)
+
+        # Construct state derivatives (6 states: position, velocity, orientation rates)
+        # Assuming x = [position_xyz, velocity_xyz] for simplicity in this example
+        state_dot = np.zeros(6, dtype="object")
+        state_dot[0:3] = state[3:6]  # dx/dt = velocity
+        state_dot[3:6] = linear_accel  # dv/dt = acceleration
+
+        return state_dot
+
+    def add_dynamic_constraints(self, prog, x, u, rotorpy_model, dt):
+        """
+        Add dynamic constraints to the MathematicalProgram.
+
+        Parameters:
+            prog: The pydrake MathematicalProgram instance.
+            x: Decision variable array for states (N x 6).
+            u: Decision variable array for control inputs ((N-1) x 4).
+            rotorpy_model: Instance of the RotorPy Multirotor class.
+            dt: Time step size.
+        """
+        N = x.shape[0]  # Number of time steps
+
+        for k in range(N - 1):
+            # Get symbolic dynamics for current state and control input
+            state_dot = self.symbolic_dynamics(x[k], u[k], rotorpy_model)
+
+            # Discretize the dynamics using Euler integration
+            next_state = x[k] + np.array(state_dot) * dt
+
+            # Add constraints for each state variable
+            for i in range(x.shape[1]):  # Iterate over the state dimension
+                prog.AddConstraint(next_state[i] == x[k + 1][i])
+
+    # def add_dynamics_constraint(self, prog, x, u, N, T):
+    #     state_for_rotorpy = {'x': x[0:3], 'v':x[3:6], 'q':x[6:10],}
+    #     multirotor = self.vehicle
+    #     for i in range(N-1):
+    #
+    #         controls = np.array([Expression(var) for var in u[i]])
+    #         input_for_rotorpy = {'cmd_motor_thrusts': controls}
+    #         dynamics = multirotor.statedot(state_for_rotorpy, input_for_rotorpy, T)
+    #         statedot = np.array([dynamics['vdot'], dynamics['wdot']])
+    #         prog.AddLinearEqualityConstraint((x[i+1]) - statedot, np.zeros(6)) # 6 elements in state??
 
     def barrier_dist(self, p_i, p_j):
         x_i, y_i = p_i
@@ -211,7 +266,15 @@ class MPC_Controller(object):
         # add constraints
         self.add_intial_state_constraint(prog, x, x_current)
         self.add_input_saturation_constraint(prog, x, u, N)
-        self.add_dynamics_constraint(prog, x, u, N, T)
+
+        # self.add_dynamics_constraint(prog, x, u, N, T)
+
+        # RotorPy model
+        rotorpy_model = self.vehicle
+
+        # Add dynamic constraints
+        self.add_dynamic_constraints(prog, x, u, rotorpy_model, T)
+
 
         # add cost
         self.add_barrier_obstacle_constraint(prog, x, N)
