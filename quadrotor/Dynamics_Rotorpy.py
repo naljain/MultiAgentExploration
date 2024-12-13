@@ -12,7 +12,7 @@ class MPC_RotorPy(object):
         self.vehicle = vehicle
         self.map = map
         self.d_safe = 10
-        self.Q = np.diag([100, 100, 100, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1])
+        self.Q = np.diag([30, 30, 20, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0])
 
         self.R = np.eye(4)*0.00000000000000000000000000001
         self.thrust_d = np.array([1788.53, 1788.53, 1788.53, 1788.53])
@@ -107,10 +107,11 @@ class MPC_RotorPy(object):
         v = x[3:6]  # Velocity: [vx, vy, vz]
         q = x[6:10] # Orientation: Quaterniom[i, j, k, w]
         omega = x[10:13] # Angular velocity: [wx, wy, wz]
-        rotor_speed = x[13:17] # Rotor speeds: [w1, w2, w3, w4]
+        # rotor_speed = x[13:17] # Rotor speeds: [w1, w2, w3, w4]
 
         # Define symbolic control inputs
-        cmd_motor_speeds = u[0:4]  # Motor speeds: [w1, w2, w3, w4]
+        rotor_speed = u[0:4]  # Motor speeds: [w1, w2, w3, w4]
+
 
         # Gravity vector
         g = np.array([0, 0, -self.gravity])
@@ -137,7 +138,7 @@ class MPC_RotorPy(object):
         ])
         
         # Rotor speed derivatives
-        rotor_accel = (1/self.tau_m)*(cmd_motor_speeds - rotor_speed)
+        rotor_accel = (1/self.tau_m)*(rotor_speed)
 
         # Position derivatives
         x_dot = v*1
@@ -241,9 +242,9 @@ class MPC_RotorPy(object):
         prog = MathematicalProgram()
 
         # initialise decision variables
-        x = np.zeros((N, 17), dtype= "object")
+        x = np.zeros((N, 13), dtype= "object")
         for i in range(N):
-            x[i] = prog.NewContinuousVariables(17, 'x_' + str(i))
+            x[i] = prog.NewContinuousVariables(13, 'x_' + str(i))
         u = np.zeros((N-1, 4), dtype = "object")
         for i in range(N-1):
             u[i] = prog.NewContinuousVariables(4, 'u_' + str(i))
@@ -266,14 +267,14 @@ class MPC_RotorPy(object):
         solver = SnoptSolver()
         solver_id = solver.id()
         prog.SetSolverOption(solver_id=solver_id, solver_option='Print file', option_value='./snopt.out')
-        # prog.SetInitialGuess(u, np.array([self.thrust_d],
-        #                                  [self.thrust_d],
-        #                                  [self.thrust_d],
-        #                                  [self.thrust_d]))
-        prog.SetInitialGuess(x, [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1788.53, 1788.53, 1788.53, 1788.53],
-                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1788.53, 1788.53, 1788.53, 1788.53],
-                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1788.53, 1788.53, 1788.53, 1788.53],
-                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1788.53, 1788.53, 1788.53, 1788.53]])
+        prog.SetInitialGuess(u, [[1788.53, 1788.53, 1788.53, 1788.53],
+                                         [1788.53, 1788.53, 1788.53, 1788.53],
+                                         [1788.53, 1788.53, 1788.53, 1788.53]]
+        )
+        prog.SetInitialGuess(x, [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], # had to do this so it doesn't error out
+                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
         result = solver.Solve(prog)
         if result.is_success():
             print("Solution found!")

@@ -17,10 +17,10 @@ Planner = GlobalPlanner(map, agents, time_step, bloat_val, senor_range,
                             unknown_travel)
 initial_pose = Planner.start_pos
 goal_pose = Planner.run_planner()
-traj = np.array([(1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1788.53 ,1788.53 ,1788.53 ,1788.53),
-                 (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1788.53 ,1788.53 ,1788.53 ,1788.53),
-                 (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1788.53 ,1788.53 ,1788.53 ,1788.53),
-                 (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1788.53 ,1788.53 ,1788.53 ,1788.53)])
+traj = np.array([(1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0),
+                 (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0),
+                 (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0),
+                 (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)])
 
 # Create a multirotor object
 vehicle = Multirotor(quad_params, control_abstraction='cmd_motor_speeds', aero=True)
@@ -68,7 +68,7 @@ while True:
     u_control_next = {'cmd_motor_speeds': u_mpc_next}
     next_state = vehicle.step(next_state, u_control_next, 0.1)
     to_plot.append(next_state)
-    if counter > 200:
+    if counter > 10:
         break
 # u_test = {'cmd_motor_speeds': np.array([1788.53, 1788.53, 1788.53, 1788.53])}
 # while True:
