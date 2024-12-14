@@ -12,9 +12,9 @@ class MPC_RotorPy(object):
         self.vehicle = vehicle
         self.map = map
         self.d_safe = 10
-        self.Q = np.diag([30, 30, 20, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0])
+        self.Q = np.diag([10, 10, 5, 1, 1, 1, 3, 3, 3, 3, 1, 1, 1])
 
-        self.R = np.eye(4)*0.00000000000000000000000000001
+        self.R = np.eye(4)*0.00001
         self.thrust_d = np.array([1788.53, 1788.53, 1788.53, 1788.53])
         self.tau_m = vehicle.tau_m
         self.rotor_geometry = vehicle.rotor_geometry
@@ -63,6 +63,9 @@ class MPC_RotorPy(object):
                     result_j[j] += tensor_ijk[i, j, k] * matrix_ik[i, k]
     
         return result_j
+    
+    def take_init_guess(self, u_se3):
+        self.u_guess = u_se3['cmd_motor_speeds']
         
     def add_intial_state_constraint(self, prog, x, x_current):
         """
@@ -70,12 +73,23 @@ class MPC_RotorPy(object):
         from waypoints as the prev agent could have ended not on the waypoint
         for the prev traj segment
         """
-
-        state = np.concatenate([x_current['x'], x_current['v'], x_current['q'], x_current['w']])
-        n_x = state.shape[0]
+        # state = np.concatenate([x_current['x'], x_current['v'], x_current['q'], x_current['w']])
+        # state_x_v = np.concatenate([x_current['x'], x_current['v']])
+        # n_x_v = state_x_v.shape[0]
+        # state_p_w = np.concatenate([x_current['q'], x_current['w']])
+        # state_p_w = np.concatenate([x_current['w']])
+        # n_p_w = state_p_w.shape[0]
         # print(n_x)
+        state = np.concatenate([x_current['x'], x_current['v']])
+        n_x = state.shape[0]
+        rotor_state = x_current['rotor_speeds']
+        n_rotor = rotor_state.shape[0]
         for i in range(n_x):
             prog.AddBoundingBoxConstraint(state[i], state[i], x[0, i])
+        # for i in range(n_rotor):
+        #     prog.AddBoundingBoxConstraint(self.rotor_speed_min, self.rotor_speed_max, x[0, i+n_x])
+        # for i in range(n_p_w):
+        #     prog.AddBoundingBoxConstraint(state_p_w[i], state_p_w[i], x[0, i+n_x_v])
     
     def add_input_saturation_constraint(self, prog, x, u, N):
         n_u = u.shape[1]
@@ -107,10 +121,10 @@ class MPC_RotorPy(object):
         v = x[3:6]  # Velocity: [vx, vy, vz]
         q = x[6:10] # Orientation: Quaterniom[i, j, k, w]
         omega = x[10:13] # Angular velocity: [wx, wy, wz]
-        # rotor_speed = x[13:17] # Rotor speeds: [w1, w2, w3, w4]
+        rotor_speed = x[13:17] # Rotor speeds: [w1, w2, w3, w4]
 
         # Define symbolic control inputs
-        rotor_speed = u[0:4]  # Motor speeds: [w1, w2, w3, w4]
+        cmd_speed = u[0:4]  # Motor speeds: [w1, w2, w3, w4]
 
 
         # Gravity vector
@@ -123,12 +137,12 @@ class MPC_RotorPy(object):
         norm_q = sqrt(i**2 + j**2 + k**2 + w**2)
         epsilon = Expression(1e-6)
         default_quaternion = np.array([Expression(0), Expression(0), Expression(0), Expression(1)])
-        for i in range(4):
-            q[i] = if_then_else(
-                norm_q > epsilon,
-                q[i] / norm_q,
-            default_quaternion[i])
-        # q = q / (np.linalg.norm(q) + 0.0000001)
+        # for i in range(4):
+        #     q[i] = if_then_else(
+        #         norm_q > epsilon,
+        #         q[i] / norm_q,
+        #     default_quaternion[i])
+        q = q / (np.linalg.norm(q) + 0.0000001)
 
         # R, Rotation Matrix
         R = np.array([
@@ -138,7 +152,7 @@ class MPC_RotorPy(object):
         ])
         
         # Rotor speed derivatives
-        rotor_accel = (1/self.tau_m)*(rotor_speed)
+        rotor_accel = (1/self.tau_m)*(rotor_speed - cmd_speed)
 
         # Position derivatives
         x_dot = v*1
@@ -220,13 +234,13 @@ class MPC_RotorPy(object):
         for k in range(N-1):
             # print((x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]))
             prog.AddQuadraticCost(
-                (x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]) + (u[k]).T @ self.R @ (u[k])
+                (x[k][:13] - x_ref[k][:13]).T @ self.Q @ (x[k][:13] - x_ref[k][:13]) + (u[k]-self.thrust_d).T @ self.R @ (u[k]-self.thrust_d)
             )
             # prog.AddQuadraticCost(
             #     (x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k])
             #     )
 
-        prog.AddQuadraticCost((x[N-1] - x_ref[N-1]).T @ self.Q @ (x[N-1] - x_ref[N-1]))
+        prog.AddQuadraticCost((x[N-1][:13] - x_ref[N-1][:13]).T @ self.Q @ (x[N-1][:13] - x_ref[N-1][:13]))
 
     def compute_mpc_feedback(self, x_current, x_ref):
         # x_test = np.array([0, 0, 0.1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53])
@@ -239,43 +253,48 @@ class MPC_RotorPy(object):
         T = 0.1 # time step
 
         # initialise mathematical program
-        prog = MathematicalProgram()
+        self.prog = MathematicalProgram()
 
         # initialise decision variables
-        x = np.zeros((N, 13), dtype= "object")
+        x = np.zeros((N, 17), dtype= "object")
         for i in range(N):
-            x[i] = prog.NewContinuousVariables(13, 'x_' + str(i))
+            x[i] = self.prog.NewContinuousVariables(17, 'x_' + str(i))
         u = np.zeros((N-1, 4), dtype = "object")
         for i in range(N-1):
-            u[i] = prog.NewContinuousVariables(4, 'u_' + str(i))
+            u[i] = self.prog.NewContinuousVariables(4, 'u_' + str(i))
 
         # add constraints
-        self.add_intial_state_constraint(prog, x, x_current)
+        self.add_intial_state_constraint(self.prog, x, x_current)
 
-        self.add_input_saturation_constraint(prog, x, u, N)
+        self.add_input_saturation_constraint(self.prog, x, u, N)
 
         # Add dynamic constraints
-        self.add_dynamic_constraints(prog, x, u, T, N)
+        self.add_dynamic_constraints(self.prog, x, u, T, N)
 
 
         # add cost
         # self.add_barrier_obstacle_constraint(prog, x, N)
         # TODO input x_ref
-        self.add_cost(prog, x, x_ref, u, N)
+        self.add_cost(self.prog, x, x_ref, u, N)
 
         # solve the QP
         solver = SnoptSolver()
         solver_id = solver.id()
-        prog.SetSolverOption(solver_id=solver_id, solver_option='Print file', option_value='./snopt.out')
-        prog.SetInitialGuess(u, [[1788.53, 1788.53, 1788.53, 1788.53],
-                                         [1788.53, 1788.53, 1788.53, 1788.53],
-                                         [1788.53, 1788.53, 1788.53, 1788.53]]
-        )
-        prog.SetInitialGuess(x, [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], # had to do this so it doesn't error out
-                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
-        result = solver.Solve(prog)
+        self.prog.SetSolverOption(solver_id=solver_id, solver_option='Print file', option_value='./snopt.out')
+        # prog.SetInitialGuess(u, [[1788.53, 1788.53, 1788.53, 1788.53],
+        #                                  [1788.53, 1788.53, 1788.53, 1788.53],
+        #                                  [1788.53, 1788.53, 1788.53, 1788.53]]
+        # )
+        # self.prog.SetInitialGuess(u, [[0.00001, 0.00001, 0.00001, 0.00001],
+        #              [0.00001, 0.00001, 0.00001, 0.00001],
+        #              [0.00001, 0.00001, 0.00001, 0.00001]]
+        # )
+        self.prog.SetInitialGuess(u, [self.u_guess, self.u_guess, self.u_guess])
+        self.prog.SetInitialGuess(x, [[0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001], # had to do this so it doesn't error out
+                 [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001],
+                 [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001],
+                 [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001]])
+        result = solver.Solve(self.prog)
         if result.is_success():
             print("Solution found!")
         else:
