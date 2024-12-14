@@ -22,16 +22,16 @@ goal_pose = Planner.run_planner()
 #                  (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0),
 #                  (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0),
 #                  (1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)])
-traj = np.array([(1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53),
-                 (1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53),
-                 (1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53),
-                 (1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53)])
+traj = np.array([(0.5, 0.8, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53),
+                 (0.5, 0.8, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53),
+                 (0.5, 0.8, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53),
+                 (0.5, 0.8, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53)])
 from rotorpy.trajectories.minsnap import MinSnap
 from rotorpy.controllers.quadrotor_control import SE3Control
 controller_se3 = SE3Control(quad_params)
-traj_min = MinSnap(points=np.array([[0 , 0, 0],[1, 1, 1]]), v_avg=1.0, verbose=False)
+traj_min = MinSnap(points=np.array([[0 , 0, 0.5],[0.5, 0.8, 0.5]]), v_avg=0.5, verbose=False)
 # Create a multirotor object
-vehicle = Multirotor(quad_params, control_abstraction='cmd_motor_speeds', aero=True)
+vehicle = Multirotor(quad_params, control_abstraction='cmd_motor_speeds')
 # Create a MPC controller object
 controller = MPC_RotorPy(map, vehicle)
 
@@ -56,7 +56,7 @@ controller = MPC_RotorPy(map, vehicle)
 #                                             'wind': np.array([0,0,0]),  # Since wind is handled elsewhere, this value is overwritten
 #                                             'rotor_speeds': np.array([1788.53, 1788.53, 1788.53, 1788.53])}
 
-vehicle.initial_state = {'x': np.array([0.0001,0.0001,0.0001]),
+vehicle.initial_state = {'x': np.array([0.0001,0.0001,0.5]),
                                             'v': np.array([0.000001,0.0000001,0.0000001]),
                                             'q': np.array([0.000001, 0.000001, 0.000001, 1]), # [i,j,k,w]
                                             'w': np.array([0.0000001,0.000001,0.0000001]),
@@ -64,44 +64,56 @@ vehicle.initial_state = {'x': np.array([0.0001,0.0001,0.0001]),
                                             'rotor_speeds': np.array([1788.53, 1788.53, 1788.53, 1788.53])}
 vehicle.motor_noise = 0.0
 init_x = vehicle.initial_state
-u_se3 = controller_se3.update(0, init_x, traj_min.update(0))
-controller.take_init_guess(u_se3)
-u_mpc_next = controller.compute_mpc_feedback(init_x,traj)
-u_control_next = {'cmd_motor_speeds': u_mpc_next} # Negative keeps it from falling faster. 
-next_state = vehicle.step(init_x, u_control_next, 0.1)
+t_step = 0.05
+times=[0]
+states = [init_x]
+flats = [traj_min.update(times[-1])]
+controls = [controller_se3.update(times[-1], states[-1], flats[-1])]
+# u_se3 = controller_se3.update(0, init_x, traj_min.update(0))
+controller.take_init_guess(controls[-1])
+u_ref = np.array([controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds']])
+u_mpc_next = controller.compute_mpc_feedback(init_x,traj, u_ref)
+u_control_next = {'cmd_motor_speeds': u_mpc_next} 
+next_state = vehicle.step(init_x, u_control_next, 0.05)
+
 counter = 0
-time_track = 0.1
-to_plot = []
-while True:
-    counter +=1
-    # if counter > 3: break
-    u_se3 = controller_se3.update(time_track, next_state, traj_min.update(time_track))
-    controller.take_init_guess(u_se3)
-    u_mpc_next = controller.compute_mpc_feedback(next_state,traj)
+
+while times[-1] < 2:
+    times.append(times[-1] + t_step)
+    states.append(next_state)
+    flats.append(traj_min.update(times[-1]))
+    controls.append(controller_se3.update(times[-1], states[-1], flats[-1]))
+
+    controller.take_init_guess(controls[-1])
+    u_ref = np.array([controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds']])
+    u_mpc_next = controller.compute_mpc_feedback(next_state,traj,u_ref)
     u_control_next = {'cmd_motor_speeds': u_mpc_next}
-    next_state = vehicle.step(next_state, u_control_next, 0.1)
-    to_plot.append(next_state)
-    if counter > 100:
-        break
+    next_state = vehicle.step(next_state, u_control_next, 0.05)
 # u_test = {'cmd_motor_speeds': np.array([1788.53, 1788.53, 1788.53, 1788.53])}
+
 # while True:
 #     counter +=1
-#     next_state = vehicle.step(next_state, u_test, 0.1)
+#     next_state = vehicle.step(states[-1], controls[-1], t_step)
+#     states.append(next_state)
+#     times.append(times[-1] + t_step)
+#     flats.append(traj_min.update(times[-1]))
+#     controls.append(controller_se3.update(times[-1], states[-1], flats[-1]))
+    
 #     to_plot.append(next_state)
 #     print('Position:', next_state['x'])
 #     print('Angle:', next_state['q'])
 
-#     if counter > 30:
+#     if counter > 1000:
 #         break
 import matplotlib.pyplot as plt
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-x_vals = [state['x'][0] for state in to_plot]
-y_vals = [state['x'][1] for state in to_plot]
-z_vals = [state['x'][2] for state in to_plot]
-quat_vals = [state['q'] for state in to_plot]
+x_vals = [state['x'][0] for state in states]
+y_vals = [state['x'][1] for state in states]
+z_vals = [state['x'][2] for state in states]
+quat_vals = [state['q'] for state in states]
 
 # Convert quaternions to roll, pitch, yaw
 rpy_vals = [R.from_quat(quat).as_euler('xyz', degrees=True) for quat in quat_vals]
@@ -110,7 +122,7 @@ pitch_vals = [rpy[1] for rpy in rpy_vals]
 yaw_vals = [rpy[2] for rpy in rpy_vals]
 
 ax.plot(x_vals, y_vals, z_vals, label='Trajectory')
-ax.quiver(x_vals, y_vals, z_vals, roll_vals, pitch_vals, yaw_vals, length=0.1, normalize=True, color='r', label='Orientation')
+# ax.quiver(x_vals, y_vals, z_vals, roll_vals, pitch_vals, yaw_vals, length=0.1, normalize=True, color='r', label='Orientation')
 
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
@@ -118,5 +130,15 @@ ax.set_zlabel('Z')
 ax.set_xlim(-2, 5)
 ax.set_ylim(-2, 5)
 ax.legend()
+
+# 2D plot of x and y
+plt.figure()
+plt.plot(x_vals, y_vals, label='2D Trajectory')
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.xlim(-0.1, 1)
+plt.ylim(-0.1, 1)
+plt.legend()
+plt.show()
 
 plt.show()

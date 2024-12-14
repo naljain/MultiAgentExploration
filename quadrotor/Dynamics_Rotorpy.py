@@ -12,9 +12,9 @@ class MPC_RotorPy(object):
         self.vehicle = vehicle
         self.map = map
         self.d_safe = 10
-        self.Q = np.diag([10, 10, 5, 1, 1, 1, 3, 3, 3, 3, 1, 1, 1])
+        self.Q = np.diag([10, 10, 5, 1, 1, 1, 3, 3, 3, 3, 1, 1, 1, 1,1,1,1])
 
-        self.R = np.eye(4)*0.00001
+        self.R = np.eye(4)
         self.thrust_d = np.array([1788.53, 1788.53, 1788.53, 1788.53])
         self.tau_m = vehicle.tau_m
         self.rotor_geometry = vehicle.rotor_geometry
@@ -80,14 +80,14 @@ class MPC_RotorPy(object):
         # state_p_w = np.concatenate([x_current['w']])
         # n_p_w = state_p_w.shape[0]
         # print(n_x)
-        state = np.concatenate([x_current['x'], x_current['v']])
+        state = np.concatenate([x_current['x'], x_current['v'], x_current['q'], x_current['w']])
         n_x = state.shape[0]
         rotor_state = x_current['rotor_speeds']
         n_rotor = rotor_state.shape[0]
         for i in range(n_x):
             prog.AddBoundingBoxConstraint(state[i], state[i], x[0, i])
-        # for i in range(n_rotor):
-        #     prog.AddBoundingBoxConstraint(self.rotor_speed_min, self.rotor_speed_max, x[0, i+n_x])
+        for i in range(n_rotor):
+            prog.AddBoundingBoxConstraint(self.rotor_speed_min, self.rotor_speed_max, x[0, i+n_x])
         # for i in range(n_p_w):
         #     prog.AddBoundingBoxConstraint(state_p_w[i], state_p_w[i], x[0, i+n_x_v])
     
@@ -229,20 +229,20 @@ class MPC_RotorPy(object):
     #         x_dot = self.symbolic_quadrotor_dynamics(x[i], u[i])
     #         prog.AddConstraint(x[i+1] == (x[i] + x_dot * T))
 
-    def add_cost(self, prog, x, x_ref, u, N):
-        u_ref = 0
+    def add_cost(self, prog, x, x_ref, u, u_ref, N):
+        
         for k in range(N-1):
             # print((x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]))
             prog.AddQuadraticCost(
-                (x[k][:13] - x_ref[k][:13]).T @ self.Q @ (x[k][:13] - x_ref[k][:13]) + (u[k]-self.thrust_d).T @ self.R @ (u[k]-self.thrust_d)
+                (x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k]) + (u[k]-u_ref[k]).T @ self.R @ (u[k]-u_ref[k])
             )
             # prog.AddQuadraticCost(
             #     (x[k] - x_ref[k]).T @ self.Q @ (x[k] - x_ref[k])
             #     )
 
-        prog.AddQuadraticCost((x[N-1][:13] - x_ref[N-1][:13]).T @ self.Q @ (x[N-1][:13] - x_ref[N-1][:13]))
+        prog.AddQuadraticCost((x[N-1] - x_ref[N-1]).T @ self.Q @ (x[N-1] - x_ref[N-1]))
 
-    def compute_mpc_feedback(self, x_current, x_ref):
+    def compute_mpc_feedback(self, x_current, x_ref, u_ref):
         # x_test = np.array([0, 0, 0.1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53])
         # u_test = np.array([0, 0, 0, 0])
         # self.symbolic_quadrotor_dynamics(x_test, u_test)
@@ -250,7 +250,7 @@ class MPC_RotorPy(object):
         current_state = np.concatenate([x_current['x'], x_current['v'], x_current['q'], x_current['w'], x_current['rotor_speeds']])
         # QP params
         N = 4  # prediction horizon TODO NEEDS TO BE TUNED
-        T = 0.1 # time step
+        T = 0.05 # time step
 
         # initialise mathematical program
         self.prog = MathematicalProgram()
@@ -275,7 +275,7 @@ class MPC_RotorPy(object):
         # add cost
         # self.add_barrier_obstacle_constraint(prog, x, N)
         # TODO input x_ref
-        self.add_cost(self.prog, x, x_ref, u, N)
+        self.add_cost(self.prog, x, x_ref, u,u_ref, N)
 
         # solve the QP
         solver = SnoptSolver()
