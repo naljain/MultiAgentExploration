@@ -13,7 +13,7 @@ class MPC_RotorPy(object):
         self.vehicle = vehicle
         self.map = map
         self.d_safe = 0.1
-        self.Q = np.diag([10, 10, 5, 1, 1, 1, 3, 3, 3, 3, 1, 1, 1, 1,1,1,1])
+        self.Q = np.diag([10, 10, 5, 0.1, .1, .1, .3, .3, .3, .3, .1, .1, .1, 1, 1, 1, 1])
 
         self.R = np.eye(4)
         self.thrust_d = np.array([1788.53, 1788.53, 1788.53, 1788.53])
@@ -291,8 +291,9 @@ class MPC_RotorPy(object):
 
         current_state = np.concatenate([x_current['x'], x_current['v'], x_current['q'], x_current['w'], x_current['rotor_speeds']])
         # QP params
-        N = 6  # prediction horizon TODO NEEDS TO BE TUNED
+        N = 4  # prediction horizon TODO NEEDS TO BE TUNED
         T = 0.05 # time step
+        # N = x_ref.shape[0]
 
         # initialise mathematical program
         self.prog = MathematicalProgram()
@@ -316,7 +317,7 @@ class MPC_RotorPy(object):
 
         # add cost
         # self.add_barrier_obstacle_constraint(prog, x, N)
-        self.add_distance_constraint(self.prog, x, N)
+        # self.add_distance_constraint(self.prog, x, N)
         
         # TODO input x_ref
         self.add_cost(self.prog, x, x_ref, u,u_ref, N)
@@ -333,11 +334,17 @@ class MPC_RotorPy(object):
         #              [0.00001, 0.00001, 0.00001, 0.00001],
         #              [0.00001, 0.00001, 0.00001, 0.00001]]
         # )
-        self.prog.SetInitialGuess(u, [self.u_guess, self.u_guess, self.u_guess])
-        self.prog.SetInitialGuess(x, [[0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001], # had to do this so it doesn't error out
-                 [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001],
-                 [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001],
-                 [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001]])
+        # self.prog.SetInitialGuess(u, [self.u_guess, self.u_guess, self.u_guess])
+        # self.prog.SetInitialGuess(x, [[0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001], # had to do this so it doesn't error out
+        #          [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001],
+        #          [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001],
+        #          [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001]])
+        self.prog.SetInitialGuess(x, [current_state for _ in range(N)])
+        if N > 1:
+            self.prog.SetInitialGuess(u, [self.u_guess for _ in range(N-1)])
+        # else:
+            # self.prog.SetInitialGuess(u, [self.u_guess])
+        
         result = solver.Solve(self.prog)
         if result.is_success():
             print("Solution found!")
