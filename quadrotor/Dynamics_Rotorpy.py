@@ -1,6 +1,7 @@
 import numpy as np
 from pydrake.solvers import MathematicalProgram, SnoptSolver, SolverOptions
 from pydrake.symbolic import Expression, if_then_else, sqrt
+import math
 class MPC_RotorPy(object):
     def __init__(self, map,  vehicle):
         """
@@ -11,7 +12,7 @@ class MPC_RotorPy(object):
         """
         self.vehicle = vehicle
         self.map = map
-        self.d_safe = 10
+        self.d_safe = 0.1
         self.Q = np.diag([10, 10, 5, 1, 1, 1, 3, 3, 3, 3, 1, 1, 1, 1,1,1,1])
 
         self.R = np.eye(4)
@@ -228,6 +229,47 @@ class MPC_RotorPy(object):
     #     for i in range(N-1):
     #         x_dot = self.symbolic_quadrotor_dynamics(x[i], u[i])
     #         prog.AddConstraint(x[i+1] == (x[i] + x_dot * T))
+    def barrier_dist(self, p_i, p_j):
+        x_i, y_i = p_i
+        x_j, y_j = p_j
+        d = ((x_j - x_i) ** 2 + (y_j - y_i)**2) ** 0.5
+        return d
+
+    def add_barrier_obstacle_constraint(self, prog, x, N):
+        map = self.map
+        all_obstacles_x, all_obstacles_y = np.where(map == 1)
+        len_all_obstacles = len(all_obstacles_x)
+        d_safe = self.d_safe
+
+        for k in range(N):
+            xk, yk = x[k, 0:2]
+            epsilon = 0
+            min_dist = math.inf
+            closest_obs = []
+
+            # to make it run faster only look at moving window of map
+            for i in range(len_all_obstacles):
+                x, y = all_obstacles_x[i], all_obstacles_y[i]
+
+                d = self.barrier_dist((xk,yk), (x,y))
+                if d < min_dist:
+                    min_dist = d
+                    closest_obs = [(x, y)]
+                    continue
+                if d == min_dist:
+                    closest_obs.append((x,y))
+
+            for obs in closest_obs:
+                barrier_cost = -np.log((min_dist - d_safe + epsilon))**2
+                prog.AddCost(barrier_cost)
+
+    def add_distance_constraint(self, prog, x, N):
+        avoid = np.array([0.2, 0.2])
+        for k in range(N):
+            xk, yk = x[k, 0:2]
+            d = self.barrier_dist((xk, yk), avoid)
+            barrier_cost = -np.log(abs(d - self.d_safe))**2
+            prog.AddCost(barrier_cost)
 
     def add_cost(self, prog, x, x_ref, u, u_ref, N):
         
@@ -249,7 +291,7 @@ class MPC_RotorPy(object):
 
         current_state = np.concatenate([x_current['x'], x_current['v'], x_current['q'], x_current['w'], x_current['rotor_speeds']])
         # QP params
-        N = 4  # prediction horizon TODO NEEDS TO BE TUNED
+        N = 6  # prediction horizon TODO NEEDS TO BE TUNED
         T = 0.05 # time step
 
         # initialise mathematical program
@@ -274,6 +316,8 @@ class MPC_RotorPy(object):
 
         # add cost
         # self.add_barrier_obstacle_constraint(prog, x, N)
+        self.add_distance_constraint(self.prog, x, N)
+        
         # TODO input x_ref
         self.add_cost(self.prog, x, x_ref, u,u_ref, N)
 

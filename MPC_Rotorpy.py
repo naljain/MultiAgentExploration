@@ -29,7 +29,14 @@ traj = np.array([(0.5, 0.8, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53,
 from rotorpy.trajectories.minsnap import MinSnap
 from rotorpy.controllers.quadrotor_control import SE3Control
 controller_se3 = SE3Control(quad_params)
-traj_min = MinSnap(points=np.array([[0 , 0, 0.5],[0.5, 0.8, 0.5]]), v_avg=0.5, verbose=False)
+# traj_min = MinSnap(points=np.array([[0 , 0, 0.5],[0.5, 0.8, 0.5]]), v_avg=0.5, verbose=False)
+waypoints_minsnap = np.array([[0, 0, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [0.1, 0.1, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [0.2, 0.2, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [0.2, 0.3 ,0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [0.4, 0.4, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53]])
+traj_min = MinSnap(points=waypoints_minsnap[:,:3], v_avg=0.5, verbose=False)
 # Create a multirotor object
 vehicle = Multirotor(quad_params, control_abstraction='cmd_motor_speeds')
 # Create a MPC controller object
@@ -71,24 +78,31 @@ flats = [traj_min.update(times[-1])]
 controls = [controller_se3.update(times[-1], states[-1], flats[-1])]
 # u_se3 = controller_se3.update(0, init_x, traj_min.update(0))
 controller.take_init_guess(controls[-1])
-u_ref = np.array([controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds']])
-u_mpc_next = controller.compute_mpc_feedback(init_x,traj, u_ref)
+u_ref = np.array([controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'],controls[-1]['cmd_motor_speeds'],controls[-1]['cmd_motor_speeds']])
+u_mpc_next = controller.compute_mpc_feedback(init_x,waypoints_minsnap, u_ref)
 u_control_next = {'cmd_motor_speeds': u_mpc_next} 
 next_state = vehicle.step(init_x, u_control_next, 0.05)
 
 counter = 0
-
-while times[-1] < 2:
-    times.append(times[-1] + t_step)
+times.append(times[-1] + t_step)
+while times[-1] < 2: #or np.linalg.norm(states[-1]['x'] - waypoints_minsnap[-1]) > 0.2:
+    
     states.append(next_state)
-    flats.append(traj_min.update(times[-1]))
+    try:
+        flats.append(traj_min.update(times[-1]))
+    except:
+        break
     controls.append(controller_se3.update(times[-1], states[-1], flats[-1]))
 
     controller.take_init_guess(controls[-1])
-    u_ref = np.array([controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds']])
-    u_mpc_next = controller.compute_mpc_feedback(next_state,traj,u_ref)
+    u_ref = np.array([controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'],controls[-1]['cmd_motor_speeds'],controls[-1]['cmd_motor_speeds']])
+    u_mpc_next = controller.compute_mpc_feedback(next_state,waypoints_minsnap,u_ref)
     u_control_next = {'cmd_motor_speeds': u_mpc_next}
     next_state = vehicle.step(next_state, u_control_next, 0.05)
+    times.append(times[-1] + t_step)
+    print('Time:', times[-1])
+    print('Error:', np.linalg.norm(states[-1]['x'] - waypoints_minsnap[-1][:3]))
+
 # u_test = {'cmd_motor_speeds': np.array([1788.53, 1788.53, 1788.53, 1788.53])}
 
 # while True:
@@ -122,6 +136,7 @@ pitch_vals = [rpy[1] for rpy in rpy_vals]
 yaw_vals = [rpy[2] for rpy in rpy_vals]
 
 ax.plot(x_vals, y_vals, z_vals, label='Trajectory')
+ax.scatter(waypoints_minsnap[:, 0], waypoints_minsnap[:, 1], waypoints_minsnap[:, 2], color='r', label='Waypoints')
 # ax.quiver(x_vals, y_vals, z_vals, roll_vals, pitch_vals, yaw_vals, length=0.1, normalize=True, color='r', label='Orientation')
 
 ax.set_xlabel('X')
@@ -134,6 +149,7 @@ ax.legend()
 # 2D plot of x and y
 plt.figure()
 plt.plot(x_vals, y_vals, label='2D Trajectory')
+plt.scatter(waypoints_minsnap[:, 0], waypoints_minsnap[:, 1], color='r', label='Waypoints')
 plt.xlabel('X')
 plt.ylabel('Y')
 plt.xlim(-0.1, 1)
