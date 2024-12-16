@@ -17,7 +17,7 @@ time_step = 1
 bloat_val = 4  # BLOAT_VAL > RADIUS OF DRONE
 unknown_travel = True
 senor_range = 3  # 30 cm
-map = np.loadtxt('src/test_map2')
+map = np.loadtxt('../src/test_map2')
 Planner = GlobalPlanner(map, agents, time_step, bloat_val, senor_range,
                             unknown_travel)
 initial_pose = Planner.start_pos
