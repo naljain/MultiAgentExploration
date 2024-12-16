@@ -13,7 +13,7 @@ class MPC_RotorPy(object):
         self.vehicle = vehicle
         self.map = map
         self.d_safe = 0.1
-        self.Q = np.diag([10, 10, 5, 0.1, .1, .1, .3, .3, .3, .3, .1, .1, .1, 1, 1, 1, 1])
+        self.Q = np.diag([10, 10, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
         self.R = np.eye(4)
         self.thrust_d = np.array([1788.53, 1788.53, 1788.53, 1788.53])
@@ -334,14 +334,16 @@ class MPC_RotorPy(object):
         #              [0.00001, 0.00001, 0.00001, 0.00001],
         #              [0.00001, 0.00001, 0.00001, 0.00001]]
         # )
-        # self.prog.SetInitialGuess(u, [self.u_guess, self.u_guess, self.u_guess])
+        self.prog.SetInitialGuess(u, [self.u_guess, self.u_guess, self.u_guess])
         # self.prog.SetInitialGuess(x, [[0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001], # had to do this so it doesn't error out
         #          [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001],
         #          [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001],
         #          [0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001]])
-        self.prog.SetInitialGuess(x, [current_state for _ in range(N)])
-        if N > 1:
-            self.prog.SetInitialGuess(u, [self.u_guess for _ in range(N-1)])
+        state_guess = [0.000001 for _ in range(17)]
+        self.prog.SetInitialGuess(x, [state_guess for _ in range(N)])
+        # u_guess = [0.000001 for _ in range(4)]
+        # if N > 1:
+        #     self.prog.SetInitialGuess(u, [u_guess for _ in range(N-1)])
         # else:
             # self.prog.SetInitialGuess(u, [self.u_guess])
         

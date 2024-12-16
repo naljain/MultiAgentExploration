@@ -34,7 +34,7 @@ controller_se3 = SE3Control(quad_params)
 waypoints_minsnap = np.array([[0, 0, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
                             [0.1, 0.1, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
                             [0.2, 0.2, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
-                            [0.2, 0.3 ,0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            # [0.2, 0.3 ,0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
                             [0.4, 0.4, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
                             [0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
                             [0.6, 0.6, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
@@ -61,7 +61,21 @@ waypoints_minsnap = np.array([[0, 0, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53,
                             [2.7, 2.7, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
                             [2.8, 2.8, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
                             [2.9, 2.9, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
-                            [3, 3, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53]])
+                            [3, 3, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.1, 3.1, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.2, 3.2, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.3, 3.3, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.4, 3.4, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.5, 3.5, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.6, 3.6, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.7, 3.7, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.8, 3.8, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [3.9, 3.9, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [4, 4, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [4.1, 4.1, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [4.2, 4.2, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [4.3, 4.3, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],
+                            [4.4, 4.4, 0.5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1788.53, 1788.53, 1788.53, 1788.53],])
 
 waypoints_plot = copy.copy(waypoints_minsnap)
 traj_min = MinSnap(points=waypoints_minsnap[:,:3], v_avg=0.5, verbose=False)
@@ -116,13 +130,14 @@ counter = 0
 N = 4
 flats = []
 controls = []
+
 while (times[-1] < 60 and len(waypoints_minsnap) > N): #or np.linalg.norm(states[-1]['x'] - waypoints_minsnap[-1]) > 0.2:
     for i in range(N):
         flats.append(traj_min.update(times[-1]))
         controls.append(controller_se3.update(times[-1], states_se3[-1], flats[-1]))
         times.append(times[-1] + t_step)
         states_se3.append(vehicle.step(states_se3[-1], controls[-1], t_step))
-    controller.take_init_guess(controls[-N])
+    controller.take_init_guess(controls[0])
     u_ref = [control['cmd_motor_speeds'] for control in controls[:N-1]]
     # try:
     u_mpc_next = controller.compute_mpc_feedback(states_mpc[-1],waypoints_minsnap[:4],u_ref)
@@ -132,6 +147,14 @@ while (times[-1] < 60 and len(waypoints_minsnap) > N): #or np.linalg.norm(states
     # u_control_next = {'cmd_motor_speeds': u_ref[0]}
     states_mpc.append(vehicle.step(states_mpc[-1], u_control_next, t_step))
     controls = controls[1:]
+
+    
+    # if len(states_mpc) > 2:
+    #     state_dot = vehicle.statedot(states_mpc[-2], u_control_next, time_step)
+    #     states_mpc[-2]['x'] += state_dot['vdot'] * time_step
+    #     states_mpc[-2]['v'] += state_dot['vdot'] * time_step
+    #     states_mpc[-2]['w'] += state_dot['wdot'] * time_step
+    #     states_mpc[-2]['rotor_speeds'] = u_control_next['cmd_motor_speeds']
     # states.append(next_state)
     # try:
     #     flats.append(traj_min.update(times[-1]))
