@@ -1,7 +1,11 @@
 import numpy as np
 from pydrake.solvers import MathematicalProgram, SnoptSolver, SolverOptions
-from pydrake.symbolic import Expression, if_then_else, sqrt
+from pydrake.symbolic import Expression, if_then_else, sqrt,Variable
 import math
+from pydrake.systems.analysis import Simulator
+from pydrake.systems.primitives import SymbolicVectorSystem
+from pydrake.systems.framework import DiagramBuilder, LeafSystem, BasicVector, BasicVector_
+
 class MPC_RotorPy(object):
     def __init__(self, map,  vehicle):
         """
@@ -229,6 +233,42 @@ class MPC_RotorPy(object):
     #     for i in range(N-1):
     #         x_dot = self.symbolic_quadrotor_dynamics(x[i], u[i])
     #         prog.AddConstraint(x[i+1] == (x[i] + x_dot * T))
+    def add_dynamic_constraints_2(self, prog, x, u, T, N):
+        n_x = len(x[0])
+        n_u = len(u[0])
+        
+        def rk4_step(x, u, dt):
+            k1 = self.symbolic_quadrotor_dynamics(x, u)
+            k2 = self.symbolic_quadrotor_dynamics(x + dt/2 * k1, u)
+            k3 = self.symbolic_quadrotor_dynamics(x + dt/2 * k2, u)
+            k4 = self.symbolic_quadrotor_dynamics(x + dt * k3, u)
+            return x + (dt/6) * (k1 + 2*k2 + 2*k3 + k4)
+
+        for k in range(N-1):
+            xk = x[k]
+            uk = u[k]
+            
+            # Clip rotor speeds (assuming last 4 states are rotor speeds)
+            uk_clipped = [Expression.min(Expression.max(ui, self.rotor_speed_min), self.rotor_speed_max) for ui in uk]
+            
+            # RK4 integration
+            xk_next = rk4_step(xk, uk, T)
+            
+            # Renormalize quaternion (assuming quaternion is states 6-9)
+            q = xk_next[6:10]
+            q = q / (np.linalg.norm(q) + 0.0000001)
+            xk_next[6:10] = q
+            
+            # Add noise to rotor speeds (last 4 states)
+            # for i in range(4):
+            #     noise = Variable(f"noise_{k}_{i}")
+            #     prog.AddConstraint(noise >= -0.1)  # Adjust bounds as needed
+            #     prog.AddConstraint(noise <= 0.1)
+            #     xk_next[-4+i] += noise * Expression.abs(self.motor_noise)
+            
+            # Add constraints
+            for i in range(n_x):
+                prog.AddConstraint(x[k+1][i] == xk_next[i])
     def barrier_dist(self, p_i, p_j):
         x_i, y_i = p_i
         x_j, y_j = p_j
