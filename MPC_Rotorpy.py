@@ -73,7 +73,7 @@ controls = [controller_se3.update(times[-1], states[-1], flats[-1])]
 controller.take_init_guess(controls[-1])
 u_ref = np.array([controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds'], controls[-1]['cmd_motor_speeds']])
 u_mpc_next = controller.compute_mpc_feedback(init_x,traj, u_ref)
-u_control_next = {'cmd_motor_speeds': u_mpc_next} 
+u_control_next = {'cmd_motor_speeds': u_mpc_next}
 next_state = vehicle.step(init_x, u_control_next, 0.05)
 
 counter = 0
@@ -98,7 +98,7 @@ while times[-1] < 2:
 #     times.append(times[-1] + t_step)
 #     flats.append(traj_min.update(times[-1]))
 #     controls.append(controller_se3.update(times[-1], states[-1], flats[-1]))
-    
+
 #     to_plot.append(next_state)
 #     print('Position:', next_state['x'])
 #     print('Angle:', next_state['q'])
@@ -122,22 +122,24 @@ pitch_vals = [rpy[1] for rpy in rpy_vals]
 yaw_vals = [rpy[2] for rpy in rpy_vals]
 
 ax.plot(x_vals, y_vals, z_vals, label='Trajectory')
+ax.scatter([0, 0.5], [0, 0.8], [0.5, 0.5], 'r', label = 'Waypoints')
 # ax.quiver(x_vals, y_vals, z_vals, roll_vals, pitch_vals, yaw_vals, length=0.1, normalize=True, color='r', label='Orientation')
 
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
 ax.set_zlabel('Z')
-ax.set_xlim(-2, 5)
-ax.set_ylim(-2, 5)
+# ax.set_xlim(-2, 5)
+# ax.set_ylim(-2, 5)
 ax.legend()
 
 # 2D plot of x and y
 plt.figure()
 plt.plot(x_vals, y_vals, label='2D Trajectory')
+plt.plot
 plt.xlabel('X')
 plt.ylabel('Y')
-plt.xlim(-0.1, 1)
-plt.ylim(-0.1, 1)
+# plt.xlim(-0.1, 1)
+# plt.ylim(-0.1, 1)
 plt.legend()
 plt.show()
 
